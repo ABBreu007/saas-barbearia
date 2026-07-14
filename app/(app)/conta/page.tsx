@@ -7,6 +7,7 @@ import { initials } from "@/lib/format";
 import { ModeSwitcher } from "./mode-switcher";
 import { LogoutButton } from "./logout-button";
 import { ShareLinkButton } from "./share-link";
+import { DeleteAccountSection } from "./delete-account";
 import { trialDaysLeft, isInPilotWindow, effectivePriceCents, PILOT_PRICE_CENTS, FULL_PRICE_CENTS } from "@/lib/plans";
 import { formatCentsBRL, formatDateShort } from "@/lib/format";
 import styles from "./conta.module.css";
@@ -143,13 +144,24 @@ export default async function ContaPage() {
           <span>Formas de pagamento</span>
           <span className={styles.menuChevron}>›</span>
         </div>
-        <div className={styles.menuItem} data-disabled="true" data-last="true">
+        <div className={styles.menuItem} data-disabled="true">
           <span>Notificações</span>
           <span className={styles.menuChevron}>›</span>
         </div>
+        <Link href="/privacidade" className={styles.menuItem} target="_blank" data-last="true">
+          <span>Política de Privacidade</span>
+          <span className={styles.menuAction}>Ver ›</span>
+        </Link>
       </div>
 
       <LogoutButton className={styles.logoutBtn} />
+
+      {staff.role === "OWNER" && (
+        <div className={styles.dangerZoneWrap}>
+          <DeleteAccountSection barbershopName={staff.barbershop.name} />
+        </div>
+      )}
+
       <div style={{ height: 24 }} />
     </div>
   );

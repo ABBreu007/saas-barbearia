@@ -73,6 +73,8 @@ Todas as rotas privadas exigem sessão Supabase — via **cookie** (fluxo do fro
 |---|---|---|---|
 | `/api/auth/signup` | POST | ❌ público | Cria usuário no Supabase Auth (**não confirmado** — precisa clicar no link do e-mail, ver seção 8) + `Barbershop` + `Staff` (OWNER) + `Subscription` (FREE/TRIALING) `{email, password, barbershopName, ownerName}`. Se a criação da barbearia falhar depois do usuário Auth já existir, o usuário é removido (compensação manual, já que Auth e Postgres não compartilham uma transação). |
 | `/auth/confirm` | GET (página) | ❌ público | Destino do link de confirmação de e-mail. Client-side (ver seção 8 — o motivo é técnico, não estético). |
+| `/esqueci-senha` | GET (página) | ❌ público | Formulário de e-mail; chama `supabase.auth.resetPasswordForEmail()` direto do client. |
+| `/redefinir-senha` | GET (página) | ❌ público | Destino do link de redefinição de senha — mesmo mecanismo client-side de `/auth/confirm` (token no fragmento da URL), seguido de formulário de nova senha (`supabase.auth.updateUser({password})`). |
 
 Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supabase.auth.signInWithPassword()` no client, ou `POST {SUPABASE_URL}/auth/v1/token?grant_type=password` para testes), sem passar pelo Next.js.
 
@@ -117,12 +119,14 @@ Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supaba
 | `/api/public/[slug]/book` | POST | ❌ público | Cliente cria agendamento `{serviceId, startTime, clientName, clientPhone, staffId?}` — valida conflito de horário (escopado por `staffId` quando informado, igual ao cálculo de disponibilidade) e recalcula preço/duração a partir do serviço real no banco |
 | `/api/public/[slug]/appointments?phone=` | GET | ❌ público | Cliente busca os próprios agendamentos futuros (não cancelados) pelo telefone usado no agendamento |
 | `/api/public/[slug]/appointments/[id]/cancel` | POST | ❌ público* | Cliente cancela um agendamento `{phone}` — exige que o telefone bata com o do cliente dono do agendamento. *Sem login de cliente nesta MVP: o telefone funciona como credencial informal (mesmo nível de confiança de um link de cancelamento por e-mail sem conta). Ver nota de segurança na seção 5.* |
+| `/api/public/[slug]/data-request` | POST | ❌ público* | Direito de exclusão do titular (LGPD Art. 18) pro cliente final `{phone}` — anonimiza o `Client` (nome vira "Cliente removido", telefone/e-mail viram null) em vez de apagar de verdade, preservando o histórico de faturamento da barbearia. Mesmo modelo de credencial por telefone da rota de cancelamento. |
 
 ### Assinatura e upload
 | Rota | Método | Auth | Descrição |
 |---|---|---|---|
 | `/api/subscriptions/webhook` | POST | assinatura HMAC | Recebe eventos do Mercado Pago, valida `x-signature`, atualiza status da assinatura |
 | `/api/upload/sign` | POST | ✅ | Gera signed upload URL do Supabase Storage para banner/avatar `{kind: "banner"\|"avatar", fileExt}` |
+| `/api/barbershop` | DELETE | ✅ (OWNER) | Exclusão de conta a pedido do titular (LGPD Art. 18) `{confirmName}` — exige repetir o nome exato da barbearia. Apaga a `Barbershop` (cascade cuida do resto no Postgres) e todos os usuários Supabase Auth vinculados (staff da barbearia). Só o OWNER pode chamar. |
 
 ---
 
@@ -135,6 +139,7 @@ Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supaba
 - **Uploads** passam por signed URL gerada no backend (nunca sobe direto com uma chave pública fixa) e são escopados por `barbershopId` no path do arquivo.
 - **Segredos**: `SUPABASE_SERVICE_ROLE_KEY` e `MERCADOPAGO_ACCESS_TOKEN` só são usados em código server-side (`lib/supabase/admin.ts`, `lib/mercadopago.ts`), nunca expostos ao client.
 - **Cancelamento de agendamento pelo cliente final (limitação conhecida, aceita para o MVP)**: como não há login de cliente, `/api/public/[slug]/appointments` e `.../[id]/cancel` usam o **telefone informado** como credencial — quem souber o telefone usado num agendamento consegue ver e cancelar os agendamentos futuros dele nessa barbearia. É o mesmo modelo de confiança de um link de cancelamento sem conta (comum em sistemas de reserva sem login). Não expõe dados de outras barbearias nem dados além de serviço/horário/preço. Se isso virar um problema real, a evolução natural é um código enviado por SMS/WhatsApp antes de listar os agendamentos.
+- **LGPD**: Política de Privacidade real em `/privacidade` (linkada no cadastro, na página pública e em Conta), direito de exclusão do cliente final via `/api/public/[slug]/data-request` (anonimiza, não apaga de verdade — preserva histórico de faturamento da barbearia) e direito de exclusão da conta inteira via `DELETE /api/barbershop` (zona de perigo em Conta, só OWNER, exige digitar o nome da barbearia). Itens que ainda faltam: Termos de Uso formais e documentação mais detalhada de transferência internacional de dados (Supabase é uma empresa americana, mesmo com o banco fisicamente no Brasil).
 
 ---
 
@@ -168,15 +173,17 @@ Rotas implementadas (Next.js App Router, `app/(public)` = sem auth, `app/(app)` 
 
 | Rota | Status |
 |---|---|
-| `/login` | ✅ Funcional contra o Supabase Auth real; mostra mensagem específica se o e-mail ainda não foi confirmado |
-| `/signup` | ✅ Cadastro com confirmação de senha (campo repetido) + confirmação de e-mail real (ver nota abaixo) — depois de cadastrar, mostra tela "Confirme seu e-mail" em vez de logar automaticamente |
+| `/login` | ✅ Funcional contra o Supabase Auth real; mostra mensagem específica se o e-mail ainda não foi confirmado; link "Esqueci minha senha" |
+| `/signup` | ✅ Cadastro com confirmação de senha (campo repetido) + confirmação de e-mail real (ver nota abaixo) — depois de cadastrar, mostra tela "Confirme seu e-mail" em vez de logar automaticamente; link pra Política de Privacidade |
 | `/auth/confirm` | ✅ Destino do link do e-mail de confirmação; estabelece a sessão e manda pro Início |
+| `/esqueci-senha` → `/redefinir-senha` | ✅ Fluxo completo de recuperação de senha via Supabase Auth (`resetPasswordForEmail` + `updateUser`) |
+| `/privacidade` | ✅ Política de Privacidade (LGPD) — linkada no cadastro, na página pública e em Conta |
 | `/onboarding` | ✅ Assistente de 4 passos no primeiro acesso (modo+endereço, horários com padrão pré-preenchido, primeiro serviço, foto de perfil+trial) — fora do grupo `(app)`, sem sidebar. `AppLayout` redireciona pra cá enquanto `Barbershop.onboardedAt` for nulo. |
 | `/` (Início) | ✅ Dados reais (faturamento hoje, agendados, faltas, próximos); avatar da barbearia (foto real, quando existe) |
 | `/agenda` | ✅ Dia (timeline 08–20h) / Semana (lista mobile, grade desktop) / Mês (calendário), + criação de agendamento (cliente novo ou existente, por telefone). Clicar num agendamento (visão Dia) abre um modal com **Confirmar / Cancelar / Marcar falta / Concluir**, que o barbeiro usa para mudar o status. Aceita `?staffId=` pra filtrar por barbeiro (usado pelo drill-down do Painel), com banner "Mostrando agenda de X · Limpar filtro". |
 | `/servicos` | ✅ Lista + criar + editar (nome, duração e preço com stepper ±R$5) + remover (desativa se já tiver agendamento); tabela no desktop; estado vazio quando não há nenhum serviço ainda |
 | `/painel` | ✅ Dia/Semana/Mês. Card de faturamento (realizado x esperado + delta com cor semântica, faltas do período embutidas, meta mensal com barra de progresso no período Mês), destaques automáticos ("Faturamento X% acima do período anterior", "Faltas subiram...", etc.), 2 KPIs (Clientes atendidos, Avaliação média com tendência), Serviços mais vendidos (clicável → modal com detalhe), Faturamento por barbeiro (+ nº de atendimentos, clicável → Agenda filtrada por aquele barbeiro), comparativo com mês anterior + taxa de crescimento, estado vazio no primeiro mês sem dados. **Sem o gráfico de linha do protótipo** — decisão: não estava na lista de métricas explicitamente pedidas pelo cliente, só como visualização; pode ser adicionado depois. |
-| `/conta` | ✅ Perfil (avatar real+nome+e-mail), modo Dono/Autônomo, card de assinatura (tier PRO com preço de piloto/cheio conforme `pilotPriceUntil`, ou "X dias restantes" durante o trial), menu, logout |
+| `/conta` | ✅ Perfil (avatar real+nome+e-mail), modo Dono/Autônomo, card de assinatura (tier PRO com preço de piloto/cheio conforme `pilotPriceUntil`, ou "X dias restantes" durante o trial), compartilhar link+QR code, menu, logout, zona de perigo "Excluir minha conta" (só OWNER, exige digitar o nome da barbearia) |
 | `/conta/perfil` | ✅ Upload real de banner/avatar (Supabase Storage) + nome/descrição |
 | `/conta/dados` | ✅ Endereço, Instagram, WhatsApp — dados que a rota `/api/barbershop` já aceitava, mas sem tela própria até agora |
 | `/conta/horarios` | ✅ 7 dias com toggle + editor inline (stepper ±30min, validação abre/fecha) + folgas |

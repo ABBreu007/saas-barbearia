@@ -85,6 +85,10 @@ function LoginForm() {
             />
           </div>
 
+          <div className={styles.forgotRow}>
+            <Link href="/esqueci-senha">Esqueci minha senha</Link>
+          </div>
+
           <button className={styles.submit} type="submit" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </button>

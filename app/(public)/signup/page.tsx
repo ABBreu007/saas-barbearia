@@ -150,6 +150,11 @@ export default function SignupPage() {
           </button>
         </form>
 
+        <p className={styles.legalNote}>
+          Ao criar conta, você concorda com nossa{" "}
+          <Link href="/privacidade">Política de Privacidade</Link>.
+        </p>
+
         <div className={styles.switch}>
           Já tem conta? <Link href="/login">Entrar</Link>
         </div>

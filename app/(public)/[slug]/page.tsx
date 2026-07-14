@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getPublicBarbershopData } from "@/lib/data/public-page";
 import { initials } from "@/lib/format";
 import { todayBrazilDateString } from "@/lib/timezone";
@@ -68,6 +69,10 @@ export default async function PublicBarbershopPage({
         staffList={staff}
         showStaffPicker={barbershop.mode === "DONO" && staff.length > 1}
       />
+
+      <div className={styles.privacyFooter}>
+        <Link href="/privacidade">Política de Privacidade</Link>
+      </div>
 
       <div style={{ height: 32 }} />
     </div>

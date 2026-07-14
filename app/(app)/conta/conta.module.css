@@ -200,6 +200,95 @@
   border-radius: 10px;
 }
 
+.dangerZoneWrap {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.dangerLink {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.dangerZone {
+  width: 100%;
+  background: #fbe8ea;
+  border: 1.5px solid #f0d0d5;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.dangerTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-error-strong);
+  font-family: var(--font-heading);
+}
+
+.dangerDesc {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-ink);
+  line-height: 1.5;
+}
+
+.dangerLabel {
+  display: block;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--color-ink);
+}
+
+.dangerInput {
+  margin-top: 6px;
+  width: 100%;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.dangerError {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-error-strong);
+  font-weight: 600;
+}
+
+.dangerActions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.dangerCancelBtn {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-border);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.dangerConfirmBtn {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  background: var(--color-error-strong);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.dangerConfirmBtn:disabled {
+  opacity: 0.5;
+}
+
 .menuItem {
   padding: 15px 16px;
   display: flex;

@@ -60,6 +60,9 @@ export function BookingClient({
   const [lookupResults, setLookupResults] = useState<LookupAppointment[] | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [confirmingDataDeletion, setConfirmingDataDeletion] = useState(false);
+  const [dataDeletionDone, setDataDeletionDone] = useState(false);
+  const [dataDeletionLoading, setDataDeletionLoading] = useState(false);
 
   const [reviews, setReviews] = useState(initialReviews);
   const [ratingAvg, setRatingAvg] = useState(initialRatingAvg);
@@ -156,6 +159,20 @@ export function BookingClient({
     if (ok) setLookupResults((prev) => prev?.filter((a) => a.id !== id) ?? null);
   }
 
+  async function handleDataDeletion() {
+    if (!lookupPhone) return;
+    setDataDeletionLoading(true);
+    await fetch(`/api/public/${slug}/data-request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: lookupPhone }),
+    });
+    setDataDeletionLoading(false);
+    setConfirmingDataDeletion(false);
+    setDataDeletionDone(true);
+    setLookupResults(null);
+  }
+
   async function handleSubmitReview() {
     if (userRating === 0 || !reviewerName) return;
     setSubmittingReview(true);
@@ -233,6 +250,38 @@ export function BookingClient({
                 ))}
               </div>
             )
+          )}
+
+          {lookupPhone && !dataDeletionDone && (
+            <div className={styles.dataDeletionRow}>
+              {!confirmingDataDeletion ? (
+                <button
+                  type="button"
+                  className={styles.dataDeletionLink}
+                  onClick={() => setConfirmingDataDeletion(true)}
+                >
+                  Solicitar exclusão dos meus dados
+                </button>
+              ) : (
+                <div className={styles.dataDeletionConfirm}>
+                  <p>
+                    Isso remove seu nome e telefone dos nossos registros. Não é possível desfazer. Confirma?
+                  </p>
+                  <div className={styles.dataDeletionActions}>
+                    <button type="button" onClick={() => setConfirmingDataDeletion(false)}>
+                      Cancelar
+                    </button>
+                    <button type="button" onClick={handleDataDeletion} disabled={dataDeletionLoading}>
+                      {dataDeletionLoading ? "Removendo..." : "Sim, remover meus dados"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {dataDeletionDone && (
+            <div className={styles.hint}>Seus dados foram removidos dos nossos registros.</div>
           )}
         </div>
       )}
