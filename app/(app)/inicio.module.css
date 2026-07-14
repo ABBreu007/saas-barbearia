@@ -1,0 +1,250 @@
+.page {
+  padding: 0 var(--space-screen-x-mobile) 24px;
+}
+
+.header {
+  padding: 18px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-ink) center / cover no-repeat;
+  color: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.brandLabel {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-family: var(--font-body);
+}
+
+.brandName {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-body);
+}
+
+.dateLabel {
+  margin-top: 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: var(--font-body);
+}
+
+.greeting {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+  margin-top: 8px;
+  text-transform: capitalize;
+}
+
+.revenueCard {
+  margin-top: 22px;
+  background: var(--color-ink);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  color: var(--color-bg);
+}
+
+.revenueLabel {
+  font-size: 12px;
+  font-family: var(--font-body);
+  color: #9a9384;
+  font-weight: 600;
+}
+
+.revenueValue {
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  margin-top: 6px;
+}
+
+.progressRow {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 8px;
+  background: rgba(240, 236, 226, 0.18);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 6px;
+}
+
+.progressPct {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.expected {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: #9a9384;
+  margin-top: 7px;
+}
+
+.quadrants {
+  display: flex;
+  margin-top: 14px;
+  border: 1.5px solid var(--color-ink);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.quadrant {
+  flex: 1;
+  padding: 15px;
+}
+
+.quadrant:first-child {
+  border-right: 1.5px solid var(--color-ink);
+}
+
+.quadrantValue {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.quadrantValueAccent {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1;
+  color: var(--color-accent);
+}
+
+.quadrantLabel {
+  font-size: 11px;
+  font-family: var(--font-body);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.upcomingHeader {
+  margin-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.upcomingTitle {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.upcomingLink {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.upcomingList {
+  margin-top: 12px;
+  font-family: var(--font-body);
+}
+
+.upcomingEmpty {
+  padding: 16px 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.upcomingItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-top: 1.5px solid var(--color-border);
+}
+
+.upcomingItem:last-child {
+  border-bottom: 1.5px solid var(--color-border);
+}
+
+.upcomingTime {
+  font-size: 15px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+  min-width: 44px;
+}
+
+.upcomingInfo {
+  flex: 1;
+}
+
+.upcomingClient {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.upcomingService {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.upcomingPrice {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 1100px;
+    padding: 0 var(--space-screen-x-desktop) 32px;
+  }
+
+  .header {
+    padding-top: 28px;
+  }
+
+  .greeting {
+    font-size: 30px;
+  }
+
+  .revenueCard,
+  .quadrants {
+    max-width: 420px;
+  }
+}

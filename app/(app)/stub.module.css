@@ -1,0 +1,22 @@
+.page {
+  padding: 40px var(--space-screen-x-mobile);
+}
+
+.title {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.subtitle {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+@media (min-width: 900px) {
+  .page {
+    padding: 32px var(--space-screen-x-desktop);
+  }
+}

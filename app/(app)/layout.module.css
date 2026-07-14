@@ -1,0 +1,11 @@
+.content {
+  padding-bottom: 84px; /* espaço para a tab bar fixa do mobile */
+  min-height: 100dvh;
+}
+
+@media (min-width: 900px) {
+  .content {
+    margin-left: 236px; /* espaço para a sidebar fixa do desktop */
+    padding-bottom: 0;
+  }
+}

@@ -1,0 +1,194 @@
+// Schema Prisma — SaaS Barbearia
+// Banco: PostgreSQL (Supabase). Usa a connection string com pooler (pgbouncer, porta 6543)
+// em DATABASE_URL, e a conexão direta (porta 5432) em DIRECT_URL para migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum OperationMode {
+  DONO
+  AUTONOMO
+}
+
+enum StaffRole {
+  OWNER
+  BARBER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Barbershop {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  name         String
+  description  String?
+  bannerUrl    String?
+  avatarUrl    String?
+  mode         OperationMode @default(DONO)
+  address      String?
+  instagramUrl String?
+  whatsappUrl  String?
+  monthlyGoalCents Int?
+  onboardedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  staff         Staff[]
+  services      Service[]
+  clients       Client[]
+  appointments  Appointment[]
+  businessHours BusinessHour[]
+  timeOff       TimeOff[]
+  reviews       Review[]
+  subscription  Subscription?
+
+  @@map("barbershops")
+}
+
+model Staff {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  authUserId   String     @unique // id do usuário no Supabase Auth
+  name         String
+  email        String
+  role         StaffRole  @default(OWNER)
+  avatarUrl    String?
+  createdAt    DateTime   @default(now())
+
+  appointments Appointment[]
+
+  @@index([barbershopId])
+  @@map("staff")
+}
+
+model Service {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  name         String
+  durationMin  Int
+  priceCents   Int
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  appointments Appointment[]
+
+  @@index([barbershopId])
+  @@map("services")
+}
+
+model Client {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  name         String
+  phone        String?
+  email        String?
+  createdAt    DateTime   @default(now())
+
+  appointments Appointment[]
+
+  @@unique([barbershopId, phone])
+  @@index([barbershopId])
+  @@map("clients")
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop        @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  staffId      String?
+  staff        Staff?            @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  clientId     String
+  client       Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceId    String
+  service      Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  startTime    DateTime
+  endTime      DateTime
+  status       AppointmentStatus @default(PENDING)
+  priceCents   Int // snapshot do preço do serviço no momento do agendamento
+  createdAt    DateTime          @default(now())
+
+  @@index([barbershopId, startTime])
+  @@index([staffId, startTime])
+  @@map("appointments")
+}
+
+model BusinessHour {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  weekday      Int // 0 = domingo ... 6 = sábado
+  isOpen       Boolean    @default(true)
+  openMinutes  Int // minutos desde meia-noite, passo de 30
+  closeMinutes Int
+
+  @@unique([barbershopId, weekday])
+  @@map("business_hours")
+}
+
+model TimeOff {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  date         DateTime   @db.Date
+  reason       String?
+
+  @@index([barbershopId, date])
+  @@map("time_off")
+}
+
+model Review {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  clientName   String
+  rating       Int // 1-5
+  comment      String?
+  createdAt    DateTime   @default(now())
+
+  @@index([barbershopId])
+  @@map("reviews")
+}
+
+model Subscription {
+  id                 String              @id @default(cuid())
+  barbershopId       String              @unique
+  barbershop         Barbershop          @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan    @default(FREE)
+  status             SubscriptionStatus  @default(TRIALING)
+  mpSubscriptionId    String?            @unique
+  trialEndsAt        DateTime?
+  pilotPriceUntil    DateTime?
+  currentPeriodEnd   DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@map("subscriptions")
+}

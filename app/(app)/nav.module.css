@@ -1,0 +1,135 @@
+/* Breakpoint único: abaixo de 900px = mobile (tab bar), acima = desktop (sidebar). */
+
+.mobileNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 84px;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding-top: 11px;
+  background: var(--color-ink);
+  z-index: 30;
+}
+
+.mobileItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #6f6a5f;
+}
+
+.mobileItem[data-active="true"] {
+  color: var(--color-bg);
+}
+
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .mobileNav {
+    display: none;
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 236px;
+    background: var(--color-ink);
+    padding: 22px 16px;
+  }
+
+  .sidebarBrand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 22px;
+  }
+
+  .sidebarAvatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: var(--color-accent) center / cover no-repeat;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .sidebarBrandName {
+    color: #f0ece2;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font-body);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebarLinks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .sidebarItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: var(--radius-pill);
+    color: #9a9384;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+
+  .sidebarItem[data-active="true"] {
+    background: var(--color-accent);
+    color: #ffffff;
+  }
+
+  .sidebarFooter {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    padding: 14px;
+  }
+
+  .planBadge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #f0ece2;
+    background: rgba(255, 255, 255, 0.15);
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 7px;
+    margin-bottom: 10px;
+  }
+
+  .planManage {
+    display: block;
+    text-align: center;
+    background: #ffffff;
+    color: var(--color-accent);
+    border-radius: var(--radius-sm);
+    padding: 9px;
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+}

@@ -1,0 +1,252 @@
+.page {
+  padding: 12px var(--space-screen-x-mobile) 24px;
+  max-width: 480px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backBtn {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  border: 1.5px solid var(--color-ink);
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  margin-top: 8px;
+  font-family: var(--font-body);
+}
+
+.list {
+  margin-top: 16px;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-border);
+  border-radius: 18px;
+  overflow: hidden;
+  font-family: var(--font-body);
+}
+
+.dayRow {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.list .dayRow:last-child {
+  border-bottom: none;
+}
+
+.dayMain {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.switch {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--color-switch-off);
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.switch[data-on="true"] {
+  background: var(--color-accent);
+  justify-content: flex-end;
+}
+
+.switchKnob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.dayName {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.hoursBtn {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.closedLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+}
+
+.editorRow {
+  padding: 0 16px 14px;
+  display: flex;
+  gap: 10px;
+}
+
+.stepperBox {
+  flex: 1;
+  background: #f6f3ec;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.stepperLabel {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.stepperControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stepperBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--color-bg-secondary);
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepperBtnAccent {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepperValue {
+  font-size: 17px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+}
+
+.folgasHeader {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  font-family: var(--font-heading);
+}
+
+.folgasList {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  font-family: var(--font-body);
+}
+
+.folgaChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-ink);
+  color: var(--color-bg);
+  padding: 10px 13px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.folgaChip button {
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.addFolga {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dateInput {
+  border: 1.5px solid var(--color-border);
+  border-radius: 11px;
+  padding: 9px 10px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  background: var(--color-white);
+}
+
+.addFolgaBtn {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.message {
+  margin-top: 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-success);
+  font-family: var(--font-body);
+}
+
+.saveBtn {
+  margin-top: 18px;
+  width: 100%;
+  background: var(--color-ink);
+  color: var(--color-bg);
+  border-radius: 14px;
+  padding: 15px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-body);
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+}
