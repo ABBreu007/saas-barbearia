@@ -4,13 +4,20 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "../auth.module.css";
 
-// Mesmo mecanismo de app/auth/confirm/page.tsx: o link de recuperação de
-// senha do Supabase também redireciona com a sessão no FRAGMENTO da URL
-// (#access_token=...&type=recovery), não numa query string — por isso essa
-// página também precisa ler o fragmento manualmente e chamar setSession()
-// em vez de confiar no parsing automático (ver comentário detalhado em
-// auth/confirm/page.tsx sobre o porquê do flowType "pkce" não pegar isso
-// sozinho).
+// O link de recuperação de senha do Supabase chega em UM DE DOIS formatos
+// dependendo de quem/como disparou o e-mail, e os dois já foram observados
+// de verdade neste projeto — não é hipotético:
+// 1. Fragmento da URL (#access_token=...&type=recovery) — o que
+//    `admin.generateLink()` produz (usado nos testes automatizados).
+// 2. Query string (?code=...) — fluxo PKCE, o que `resetPasswordForEmail()`
+//    produz de verdade quando chamado do browser client (`lib/supabase/
+//    client.ts` usa `createBrowserClient` do @supabase/ssr, que tem
+//    `flowType: "pkce"` como padrão). Testar só com `admin.generateLink()`
+//    mascarou esse caso — mesma classe de erro que já aconteceu com
+//    auth/confirm (testar o mecanismo errado dá falso positivo).
+// Por isso essa página tenta os dois: primeiro tenta trocar o `code` da
+// query string (`exchangeCodeForSession`), senão cai pro fragmento
+// (`setSession`).
 export default function ResetPasswordPage() {
   const [status, setStatus] = useState<"checking" | "ready" | "invalid">("checking");
   const [password, setPassword] = useState("");
@@ -19,6 +26,16 @@ export default function ResetPasswordPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    const supabase = createClient();
+    const code = new URL(window.location.href).searchParams.get("code");
+
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        setStatus(error ? "invalid" : "ready");
+      });
+      return;
+    }
+
     const hash = new URLSearchParams(window.location.hash.slice(1));
     const access_token = hash.get("access_token");
     const refresh_token = hash.get("refresh_token");
@@ -28,7 +45,6 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    const supabase = createClient();
     supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
       setStatus(error ? "invalid" : "ready");
     });
