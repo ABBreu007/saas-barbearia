@@ -35,9 +35,16 @@ export async function getDashboardData(barbershopId: string) {
     .filter((a) => a.startTime >= now && a.status !== "NO_SHOW")
     .slice(0, 3);
 
-  // Agendamentos criados manualmente (Agenda) já nascem CONFIRMED; só os
-  // vindos da página pública nascem PENDING antes de o barbeiro confirmar —
-  // é essa fila que precisa de ação preventiva (evita virar falta).
+  // NOTA IMPORTANTE (corrigida após auditoria): hoje, tanto a criação manual
+  // (Agenda) quanto a página pública (`/api/public/[slug]/book`) criam o
+  // agendamento já como CONFIRMED, de propósito — decisão de produto pra
+  // não exigir uma etapa extra de aprovação do barbeiro. Ou seja, esse
+  // filtro por PENDING nunca vai encontrar nada nos fluxos atuais; fica
+  // aqui pronto (e o modal de ação da Agenda já sabe lidar com PENDING→
+  // CONFIRMED) caso um dia exista um fluxo que crie agendamento pendente de
+  // aprovação. Enquanto isso não existir, esse alerta simplesmente não
+  // aparece — comportamento correto, não um bug, mas documentado aqui pra
+  // não confundir quem ler o código depois.
   const pendingConfirmation = todayAppointments.filter((a) => a.status === "PENDING");
 
   return {

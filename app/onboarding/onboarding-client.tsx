@@ -77,6 +77,7 @@ export function OnboardingClient({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const avatarInput = useRef<HTMLInputElement>(null);
 
   async function handleStep1Continue() {
@@ -127,11 +128,22 @@ export function OnboardingClient({
 
   async function handleFinish() {
     setFinishing(true);
-    await fetch("/api/barbershop", {
+    setFinishError(null);
+    // Bug real encontrado em auditoria: essa chamada não checava `res.ok` —
+    // se o PATCH falhasse (ex.: rede instável), o código seguia direto pro
+    // redirect mesmo assim, e o usuário caía de volta no passo 1 do
+    // onboarding (porque `onboardedAt` continuava nulo) sem entender por quê,
+    // como se o progresso tivesse sumido. Agora só redireciona em caso de sucesso.
+    const res = await fetch("/api/barbershop", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...(avatarUrl ? { avatarUrl } : {}), markOnboarded: true }),
     });
+    if (!res.ok) {
+      setFinishing(false);
+      setFinishError("Não foi possível concluir agora. Tente novamente.");
+      return;
+    }
     // Reload de verdade — igual ao fluxo de confirmação de e-mail, garante
     // que o layout do (app) já enxerga onboardedAt preenchido na primeira
     // renderização em vez de correr risco de cache client-side.
@@ -301,6 +313,8 @@ export function OnboardingClient({
                 ? "Seu teste grátis começa agora, sem cartão de crédito."
                 : `Você tem ${trialDays} dia${trialDays === 1 ? "" : "s"} de teste grátis, sem cartão de crédito.`}
             </div>
+
+            {finishError && <div className={styles.error}>{finishError}</div>}
 
             <button type="button" className={styles.primaryBtn} onClick={handleFinish} disabled={finishing || uploading}>
               {finishing ? "Concluindo..." : "Concluir e ver minha agenda"}

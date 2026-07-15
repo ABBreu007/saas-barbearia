@@ -62,25 +62,42 @@ async function ratingAvgInRange(barbershopId: string, start: Date, end: Date) {
 // nenhum horário de funcionamento configurado — 0% sugeriria "nunca ocupado
 // quando na verdade é dado insuficiente", mesma regra do resto do arquivo.
 async function occupancyPctInRange(barbershopId: string, start: Date, end: Date): Promise<number | null> {
-  const businessHours = await prisma.businessHour.findMany({ where: { barbershopId, isOpen: true } });
+  const [businessHours, staffCount] = await Promise.all([
+    prisma.businessHour.findMany({ where: { barbershopId, isOpen: true } }),
+    prisma.staff.count({ where: { barbershopId } }),
+  ]);
   if (businessHours.length === 0) return null;
+  // Capacidade real é "minutos de expediente × nº de barbeiros" (cada um
+  // atende em paralelo, ocupando uma cadeira própria) — sem multiplicar por
+  // isso, uma barbearia com vários barbeiros passaria de 100% de ocupação
+  // sempre que mais de um atendesse no mesmo horário, o que é o caso normal,
+  // não uma anomalia.
+  const chairs = Math.max(1, staffCount);
 
   const hoursByWeekday = new Map(businessHours.map((h) => [h.weekday, h]));
   const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  // `start` já é o instante UTC correspondente à meia-noite NO BRASIL (ver
+  // brazilDayBounds/brazilMonthStart em lib/timezone.ts — usam Date.UTC com
+  // +3h embutido). Passo o cursor em incrementos de exatamente 24h a partir
+  // daí — NUNCA normalizar com `.setUTCHours(0,0,0,0)` no meio do caminho:
+  // isso opera em termos de UTC, não do fuso do Brasil, e re-alinhar um
+  // instante já correto pra "meia-noite UTC" na verdade empurra pro dia
+  // BRASILEIRO anterior (ex.: 01/07 00:00 UTC-3 = 03:00 UTC; zerar as horas
+  // em UTC vira 01/07 00:00 UTC, que em Brasília ainda é 30/06 21:00 — um
+  // dia inteiro pra trás). Bug real encontrado nesta mesma sessão, corrigido
+  // antes de qualquer barbearia real chegar a usar essa métrica.
   let availableMinutes = 0;
   const cursor = new Date(start);
-  cursor.setUTCHours(0, 0, 0, 0);
-  const endDay = new Date(end);
-  endDay.setUTCHours(0, 0, 0, 0);
-  while (cursor <= endDay) {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  while (cursor <= end) {
     const weekdayName = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Sao_Paulo",
       weekday: "short",
     }).format(cursor);
     const hours = hoursByWeekday.get(WEEKDAY_NAMES.indexOf(weekdayName));
     if (hours) availableMinutes += hours.closeMinutes - hours.openMinutes;
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    cursor.setTime(cursor.getTime() + DAY_MS);
   }
   if (availableMinutes === 0) return null;
 
@@ -93,7 +110,7 @@ async function occupancyPctInRange(barbershopId: string, start: Date, end: Date)
     0
   );
 
-  return Math.round((occupiedMinutes / availableMinutes) * 1000) / 10;
+  return Math.round((occupiedMinutes / (availableMinutes * chairs)) * 1000) / 10;
 }
 
 export type Highlight = { type: "positive" | "warning"; text: string };
