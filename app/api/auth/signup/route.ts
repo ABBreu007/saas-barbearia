@@ -51,11 +51,23 @@ export async function POST(request: NextRequest) {
   // pra detectar esse caso.
   const alreadyRegistered = authData.user && authData.user.identities?.length === 0;
 
-  if (authError || !authData.user || alreadyRegistered) {
-    const status = authError?.status === 422 || alreadyRegistered ? 409 : 500;
+  if (alreadyRegistered) {
+    return NextResponse.json({ error: "email_already_registered" }, { status: 409 });
+  }
+
+  // Qualquer outra falha do signUp() — incluindo, na prática, falha ao
+  // ENVIAR o e-mail de confirmação (o GoTrue trata isso como erro do
+  // signUp() inteiro quando "Confirm email" está ativado, não como um aviso
+  // separado). Bug real encontrado: antes essa rota devolvia o mesmo
+  // `error: "auth_signup_failed"` tanto pra esse caso quanto pro de e-mail
+  // já cadastrado, e o frontend traduzia AMBOS como "Esse e-mail já está
+  // cadastrado" — uma falha de SMTP (ex.: rate limit, domínio de remetente
+  // não verificado) aparecia pro usuário como se a conta já existisse,
+  // escondendo a causa real. Agora os dois casos têm códigos diferentes.
+  if (authError || !authData.user) {
     return NextResponse.json(
       { error: "auth_signup_failed", detail: authError?.message },
-      { status }
+      { status: 500 }
     );
   }
 

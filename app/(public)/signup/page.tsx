@@ -33,10 +33,14 @@ export default function SignupPage() {
     setLoading(false);
     if (!res.ok) {
       const body = await res.json().catch(() => null);
+      // Distingue "e-mail já cadastrado" de qualquer outra falha (ex.: erro
+      // ao enviar o e-mail de confirmação) — as duas costumavam mostrar a
+      // mesma mensagem, o que escondia problemas reais de infraestrutura
+      // atrás de um "já está cadastrado" que nem sempre era verdade.
       setError(
-        body?.error === "auth_signup_failed"
+        body?.error === "email_already_registered"
           ? "Esse e-mail já está cadastrado."
-          : "Não foi possível criar a conta. Tente novamente."
+          : "Não foi possível criar a conta agora. Tente novamente em alguns minutos — se persistir, avise o suporte."
       );
       return;
     }
