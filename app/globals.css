@@ -27,6 +27,14 @@
   --color-error-strong: #e11d48;
   --color-switch-off: #cfc9bb;
 
+  /* Status de métrica (verde/amarelo/vermelho/neutro) — usado por
+     lib/metric-status.ts em qualquer card com meta. Semântico, separado do
+     --color-accent (que é a cor de marca/destaque, não de status). */
+  --status-verde: var(--color-success-strong);
+  --status-amarelo: var(--color-amber-strong);
+  --status-vermelho: var(--color-error-strong);
+  --status-neutro: var(--color-text-secondary);
+
   /* Tipografia */
   --font-heading: "Bricolage Grotesque", sans-serif;
   --font-body: "Inter", system-ui, sans-serif;

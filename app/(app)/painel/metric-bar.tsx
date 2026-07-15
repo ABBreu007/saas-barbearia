@@ -23,8 +23,11 @@ export function ServiceBar({
     <>
       <button type="button" className={styles.barRowBtn} onClick={() => setOpen(true)}>
         <div className={styles.barHeader}>
-          <span>{name}</span>
-          <span className={styles.barValue}>{count}</span>
+          <span>
+            {name}
+            <span className={styles.staffCount}> · {count}x</span>
+          </span>
+          <span className={styles.barValue}>{formatCentsBRL(revenueCents)}</span>
         </div>
         <div className={styles.barTrack}>
           <div className={styles.barFill} style={{ width: `${pct}%` }} />

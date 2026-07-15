@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatCentsBRL, formatDateShort, formatTime } from "@/lib/format";
+import { brazilDateStringBounds } from "@/lib/timezone";
 import type { PublicBarbershopData } from "@/lib/data/public-page";
 import styles from "./public.module.css";
 
@@ -12,6 +13,19 @@ type LookupAppointment = {
   priceCents: number;
   service: { name: string };
 };
+
+const BOOKING_WINDOW_DAYS = 14;
+const WEEKDAY_LABELS = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+
+// Próximos N dias a partir de `fromDateStr` (inclusive), como strings
+// YYYY-MM-DD. Reaproveita o mesmo padrão de app/(app)/agenda/day-view.tsx
+// (offset fixo, sem horário de verão no Brasil desde 2019 — ver
+// lib/timezone.ts) em vez de reimplementar a lógica de fuso aqui.
+function nextDays(fromDateStr: string, count: number): string[] {
+  const { start } = brazilDateStringBounds(fromDateStr);
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  return Array.from({ length: count }, (_, i) => new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10));
+}
 
 export function BookingClient({
   slug,
@@ -43,6 +57,8 @@ export function BookingClient({
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id ?? "");
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(bookingDate);
+  const bookableDays = nextDays(bookingDate, BOOKING_WINDOW_DAYS);
   const [slots, setSlots] = useState(availableSlots);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -77,11 +93,9 @@ export function BookingClient({
 
   const selectedService = services.find((s) => s.id === selectedServiceId);
 
-  async function handleSelectStaff(staffId: string | null) {
-    setSelectedStaffId(staffId);
-    setSelectedSlot(null);
+  async function fetchSlots(dateStr: string, staffId: string | null) {
     setSlotsLoading(true);
-    const url = `/api/public/${slug}?date=${bookingDate}${staffId ? `&staffId=${staffId}` : ""}`;
+    const url = `/api/public/${slug}?date=${dateStr}${staffId ? `&staffId=${staffId}` : ""}`;
     const res = await fetch(url);
     setSlotsLoading(false);
     if (!res.ok) return;
@@ -89,12 +103,24 @@ export function BookingClient({
     setSlots(data.availableSlots ?? []);
   }
 
+  async function handleSelectStaff(staffId: string | null) {
+    setSelectedStaffId(staffId);
+    setSelectedSlot(null);
+    await fetchSlots(selectedDate, staffId);
+  }
+
+  async function handleSelectDate(dateStr: string) {
+    setSelectedDate(dateStr);
+    setSelectedSlot(null);
+    await fetchSlots(dateStr, selectedStaffId);
+  }
+
   async function handleConfirm() {
     if (!selectedSlot || !selectedService || !clientName || !clientPhone) return;
     setBooking(true);
     setBookError(null);
 
-    const startTime = new Date(`${bookingDate}T${selectedSlot}:00-03:00`).toISOString();
+    const startTime = new Date(`${selectedDate}T${selectedSlot}:00-03:00`).toISOString();
 
     const res = await fetch(`/api/public/${slug}/book`, {
       method: "POST",
@@ -342,7 +368,31 @@ export function BookingClient({
       )}
 
       <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Horários — hoje</h2>
+        <h2 className={styles.sectionTitle}>Escolha o dia</h2>
+        <div className={styles.dateStrip}>
+          {bookableDays.map((d) => {
+            const day = Number(d.slice(8, 10));
+            const weekday = new Date(`${d}T12:00:00Z`).getUTCDay();
+            return (
+              <button
+                key={d}
+                type="button"
+                className={styles.dateChip}
+                data-selected={d === selectedDate}
+                onClick={() => handleSelectDate(d)}
+              >
+                <span className={styles.dateChipLabel}>{WEEKDAY_LABELS[weekday]}</span>
+                <span className={styles.dateChipNum}>{day}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          Horários — {selectedDate === bookingDate ? "hoje" : formatDateShort(new Date(`${selectedDate}T12:00:00Z`))}
+        </h2>
         <div className={styles.slotList}>
           {slotsLoading && <div className={styles.hint}>Atualizando horários...</div>}
           {!slotsLoading && slots.length === 0 && (

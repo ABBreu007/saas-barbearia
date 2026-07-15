@@ -54,6 +54,7 @@ model Barbershop {
   instagramUrl String?
   whatsappUrl  String?
   monthlyGoalCents Int?
+  dailyGoalCents   Int?
   onboardedAt  DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt

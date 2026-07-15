@@ -33,9 +33,13 @@
   color: var(--color-bg);
 }
 
+/* Preto = dado real/realizado (faturamento já feito); azul fica reservado
+   pra meta/projeção/comparativo (ver .growthCard mais abaixo) — mesma
+   convenção do card do Início, que também mostra faturamento realizado
+   (item 1.8 do documento de melhorias: consistência visual entre telas). */
 .revenueCard {
   margin-top: 16px;
-  background: var(--color-accent);
+  background: var(--color-ink);
   border-radius: var(--radius-lg);
   padding: 20px;
   color: #fff;
@@ -48,6 +52,12 @@
   opacity: 0.85;
 }
 
+.revenueValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
 .revenueValue {
   font-size: 42px;
   font-weight: 800;
@@ -55,6 +65,22 @@
   line-height: 1;
   margin-top: 6px;
   font-family: var(--font-heading);
+}
+
+.statusDot {
+  font-size: 16px;
+}
+
+.statusDot[data-status="verde"] {
+  color: var(--status-verde);
+}
+
+.statusDot[data-status="amarelo"] {
+  color: var(--status-amarelo);
+}
+
+.statusDot[data-status="vermelho"] {
+  color: var(--status-vermelho);
 }
 
 .revenueDeltaRow {
@@ -288,6 +314,70 @@
 
 .kpiTrend[data-sign="negative"] {
   color: var(--color-error-strong);
+}
+
+.kpiInsufficient {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.kpiValue[data-status="verde"] {
+  color: var(--status-verde);
+}
+
+.kpiValue[data-status="amarelo"] {
+  color: var(--status-amarelo);
+}
+
+.kpiValue[data-status="vermelho"] {
+  color: var(--status-vermelho);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.metricCard {
+  border: 1.5px solid var(--color-ink);
+  border-radius: var(--radius-lg);
+  padding: 13px;
+}
+
+.metricSub {
+  margin-top: 3px;
+  font-size: 10.5px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.simpleList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.simpleListRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.simpleListValue {
+  color: var(--color-text-secondary);
+  font-weight: 700;
+}
+
+.hint {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
 }
 
 .section {

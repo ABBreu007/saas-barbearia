@@ -54,6 +54,48 @@ async function ratingAvgInRange(barbershopId: string, start: Date, end: Date) {
   return result._avg.rating;
 }
 
+// % dos minutos de expediente (BusinessHour) ocupados por agendamentos não
+// cancelados no período. Simplificação aceita: usa o expediente do dia
+// inteiro mesmo pro período "dia" (cujo `end` é "agora", não meia-noite) —
+// calcular só as horas já "passadas" do dia adicionaria bastante
+// complexidade pra um ganho pequeno de precisão. Retorna null (não 0) sem
+// nenhum horário de funcionamento configurado — 0% sugeriria "nunca ocupado
+// quando na verdade é dado insuficiente", mesma regra do resto do arquivo.
+async function occupancyPctInRange(barbershopId: string, start: Date, end: Date): Promise<number | null> {
+  const businessHours = await prisma.businessHour.findMany({ where: { barbershopId, isOpen: true } });
+  if (businessHours.length === 0) return null;
+
+  const hoursByWeekday = new Map(businessHours.map((h) => [h.weekday, h]));
+  const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  let availableMinutes = 0;
+  const cursor = new Date(start);
+  cursor.setUTCHours(0, 0, 0, 0);
+  const endDay = new Date(end);
+  endDay.setUTCHours(0, 0, 0, 0);
+  while (cursor <= endDay) {
+    const weekdayName = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Sao_Paulo",
+      weekday: "short",
+    }).format(cursor);
+    const hours = hoursByWeekday.get(WEEKDAY_NAMES.indexOf(weekdayName));
+    if (hours) availableMinutes += hours.closeMinutes - hours.openMinutes;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  if (availableMinutes === 0) return null;
+
+  const appointments = await prisma.appointment.findMany({
+    where: { barbershopId, status: { not: "CANCELLED" }, startTime: { gte: start, lte: end } },
+    select: { startTime: true, endTime: true },
+  });
+  const occupiedMinutes = appointments.reduce(
+    (sum, a) => sum + (a.endTime.getTime() - a.startTime.getTime()) / 60_000,
+    0
+  );
+
+  return Math.round((occupiedMinutes / availableMinutes) * 1000) / 10;
+}
+
 export type Highlight = { type: "positive" | "warning"; text: string };
 
 // Leitura automática dos números do período — em vez de só mostrar dado cru,
@@ -123,6 +165,9 @@ export async function getMetrics(barbershopId: string, period: Period) {
     noShows,
     previousNoShows,
     previousRatingAvg,
+    completedCount,
+    totalNonCancelledCount,
+    occupancyPct,
     byService,
     byStaff,
     rating,
@@ -148,6 +193,13 @@ export async function getMetrics(barbershopId: string, period: Period) {
     }),
     noShowsInRange(barbershopId, prev.start, prev.end),
     ratingAvgInRange(barbershopId, prev.start, prev.end),
+    prisma.appointment.count({
+      where: { barbershopId, status: { in: [...COMPLETED] }, startTime: { gte: start, lte: end } },
+    }),
+    prisma.appointment.count({
+      where: { barbershopId, status: { not: "CANCELLED" }, startTime: { gte: start, lte: end } },
+    }),
+    occupancyPctInRange(barbershopId, start, end),
     prisma.appointment.groupBy({
       by: ["serviceId"],
       where: { barbershopId, status: { in: [...COMPLETED] }, startTime: { gte: start, lte: end } },
@@ -197,6 +249,28 @@ export async function getMetrics(barbershopId: string, period: Period) {
   const staffIds = byStaff.map((s) => s.staffId).filter((id): id is string => !!id);
   const staffMembers = await prisma.staff.findMany({ where: { id: { in: staffIds } } });
 
+  // Retenção: dos clientes atendidos NESTE período, quantos já tinham vindo
+  // ANTES do início dele (não é "voltou depois", é "não era a primeira
+  // vez"). Depende de `clientsServed` já resolvido, por isso roda depois do
+  // Promise.all em vez de dentro dele.
+  const servedClientIds = clientsServed.map((c) => c.clientId);
+  const returningClientIds =
+    servedClientIds.length === 0
+      ? []
+      : await prisma.appointment.groupBy({
+          by: ["clientId"],
+          where: {
+            barbershopId,
+            clientId: { in: servedClientIds },
+            status: { in: [...COMPLETED] },
+            startTime: { lt: start },
+          },
+        });
+  const retentionPct =
+    servedClientIds.length === 0
+      ? null
+      : Math.round((returningClientIds.length / servedClientIds.length) * 1000) / 10;
+
   const revenueCents = revenue._sum.priceCents ?? 0;
   const deltaPct =
     previousRevenue === 0 ? null : Math.round(((revenueCents - previousRevenue) / previousRevenue) * 1000) / 10;
@@ -228,6 +302,12 @@ export async function getMetrics(barbershopId: string, period: Period) {
     ratingCount: rating._count._all,
     ratingDeltaAbs,
     highlights: buildHighlights({ deltaPct, noShows, previousNoShows, ratingAvg, previousRatingAvg }),
+    ticketMedioCents: completedCount === 0 ? null : Math.round(revenueCents / completedCount),
+    faltasPct: totalNonCancelledCount === 0 ? null : Math.round((noShows / totalNonCancelledCount) * 1000) / 10,
+    ocupacaoPct: occupancyPct,
+    retentionPct,
+    newClientsCount: servedClientIds.length - returningClientIds.length,
+    returningClientsCount: returningClientIds.length,
     topServices: byService
       .map((s) => ({
         serviceId: s.serviceId,

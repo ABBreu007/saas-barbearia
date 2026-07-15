@@ -14,6 +14,7 @@ const updateSchema = z.object({
   whatsappUrl: z.string().url().optional().or(z.literal("")),
   address: z.string().max(200).optional(),
   monthlyGoalCents: z.number().int().positive().optional(),
+  dailyGoalCents: z.number().int().positive().optional(),
   // Sinal de "terminei o onboarding" — nunca aceita uma data vinda do
   // client; o servidor grava o instante atual pra evitar timestamp forjado.
   markOnboarded: z.boolean().optional(),

@@ -3,14 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCentsBRL } from "@/lib/format";
-import styles from "./painel.module.css";
 
+// Compartilhado entre Início (meta do dia) e Painel (meta do mês) — mesmo
+// componente, só troca o campo salvo e o texto. Recebe `styles` de fora
+// porque CSS Modules são isolados por arquivo; cada tela já tem as classes
+// .goalEdit/.goalInput/etc. definidas no próprio módulo (mesmo nome, visual
+// igual, pensado pro fundo escuro do card de faturamento das duas telas).
 export function GoalEditor({
   goalCents,
   revenueCents,
+  field,
+  label,
+  styles,
 }: {
   goalCents: number | null;
   revenueCents: number;
+  field: "monthlyGoalCents" | "dailyGoalCents";
+  label: string;
+  styles: Record<string, string>;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -24,7 +34,7 @@ export function GoalEditor({
     await fetch("/api/barbershop", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ monthlyGoalCents: cents }),
+      body: JSON.stringify({ [field]: cents }),
     });
     setSaving(false);
     setEditing(false);
@@ -53,7 +63,7 @@ export function GoalEditor({
   if (!goalCents) {
     return (
       <button type="button" className={styles.goalSetBtn} onClick={() => setEditing(true)}>
-        + Definir meta mensal
+        + Definir {label}
       </button>
     );
   }
@@ -70,7 +80,7 @@ export function GoalEditor({
         <span>
           {remaining === 0
             ? `Meta de ${formatCentsBRL(goalCents)} batida! 🎉`
-            : `Faltam ${formatCentsBRL(remaining)} para bater a meta de ${formatCentsBRL(goalCents)}`}
+            : `Faltam ${formatCentsBRL(remaining)} para bater a ${label} de ${formatCentsBRL(goalCents)}`}
         </span>
         <button type="button" className={styles.goalEditLink} onClick={() => setEditing(true)}>
           Editar

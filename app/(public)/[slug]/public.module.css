@@ -269,6 +269,47 @@
   font-family: var(--font-heading);
 }
 
+.dateStrip {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.dateChip {
+  flex-shrink: 0;
+  width: 52px;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-ink);
+}
+
+.dateChip[data-selected="true"] {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-bg);
+}
+
+.dateChipLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+.dateChipNum {
+  font-size: 16px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+}
+
 .serviceDuration {
   font-size: 11px;
   opacity: 0.85;
