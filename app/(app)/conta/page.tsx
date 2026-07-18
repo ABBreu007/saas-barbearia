@@ -118,6 +118,12 @@ export default async function ContaPage() {
           <span>Dados da barbearia</span>
           <span className={styles.menuAction}>Editar ›</span>
         </Link>
+        {staff.role === "OWNER" && (
+          <Link href="/conta/equipe" className={styles.menuItem}>
+            <span>Equipe</span>
+            <span className={styles.menuAction}>Gerenciar ›</span>
+          </Link>
+        )}
         <Link href={`/${staff.barbershop.slug}`} className={styles.menuItem} target="_blank" data-last="true">
           <span>Redes sociais &amp; link público</span>
           <span className={styles.menuAction}>Ver página ›</span>
@@ -148,6 +154,10 @@ export default async function ContaPage() {
           <span>Notificações</span>
           <span className={styles.menuChevron}>›</span>
         </div>
+        <Link href="/suporte" className={styles.menuItem} target="_blank">
+          <span>Suporte</span>
+          <span className={styles.menuAction}>Ver ›</span>
+        </Link>
         <Link href="/privacidade" className={styles.menuItem} target="_blank" data-last="true">
           <span>Política de Privacidade</span>
           <span className={styles.menuAction}>Ver ›</span>

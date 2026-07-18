@@ -97,6 +97,9 @@ function LoginForm() {
         <div className={styles.switch}>
           Ainda não tem conta? <Link href="/signup">Cadastre sua barbearia</Link>
         </div>
+        <div className={styles.switch}>
+          Precisa de ajuda? <Link href="/suporte">Fale com o suporte</Link>
+        </div>
       </div>
     </div>
   );

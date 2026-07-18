@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "../auth.module.css";
+import { isStrongPassword, PASSWORD_REQUIREMENT_TEXT } from "@/lib/password";
 
 // O link de recuperação de senha do Supabase chega em UM DE DOIS formatos
 // dependendo de quem/como disparou o e-mail, e os dois já foram observados
@@ -58,8 +59,8 @@ export default function ResetPasswordPage() {
       setError("As senhas não são iguais.");
       return;
     }
-    if (password.length < 8) {
-      setError("A senha precisa ter pelo menos 8 caracteres.");
+    if (!isStrongPassword(password)) {
+      setError(PASSWORD_REQUIREMENT_TEXT);
       return;
     }
 
@@ -119,6 +120,7 @@ export default function ResetPasswordPage() {
                   required
                   minLength={8}
                 />
+                <span className={styles.hint}>{PASSWORD_REQUIREMENT_TEXT}</span>
               </div>
 
               <div className={styles.field}>

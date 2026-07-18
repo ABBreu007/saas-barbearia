@@ -78,6 +78,7 @@ model Staff {
   authUserId   String     @unique // id do usuário no Supabase Auth
   name         String
   email        String
+  phone        String? // WhatsApp/telefone — coletado a partir do cadastro; nullable pra não quebrar contas criadas antes desse campo existir
   role         StaffRole  @default(OWNER)
   avatarUrl    String?
   createdAt    DateTime   @default(now())

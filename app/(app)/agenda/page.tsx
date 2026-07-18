@@ -37,7 +37,7 @@ export default async function AgendaPage({
   const dateStr = params.date ?? todayBrazilDateString();
   const staffId = params.staffId || undefined;
 
-  const [services, filterStaff] = await Promise.all([
+  const [services, filterStaff, allStaff] = await Promise.all([
     prisma.service.findMany({
       where: { barbershopId: staff.barbershopId, active: true },
       orderBy: { name: "asc" },
@@ -45,6 +45,11 @@ export default async function AgendaPage({
     staffId
       ? prisma.staff.findFirst({ where: { id: staffId, barbershopId: staff.barbershopId } })
       : null,
+    prisma.staff.findMany({
+      where: { barbershopId: staff.barbershopId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   let content;
@@ -77,7 +82,12 @@ export default async function AgendaPage({
     <div className={styles.page}>
       <div className={styles.header}>
         <h1 className={styles.title}>Agenda</h1>
-        <NewAppointmentButton services={services} defaultDate={dateStr} />
+        <NewAppointmentButton
+          services={services}
+          staffOptions={allStaff}
+          defaultStaffId={staff.id}
+          defaultDate={dateStr}
+        />
       </div>
       {filterStaff && (
         <div className={styles.filterBanner}>

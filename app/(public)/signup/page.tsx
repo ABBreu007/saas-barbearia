@@ -3,14 +3,42 @@
 import { useState } from "react";
 import Link from "next/link";
 import styles from "../auth.module.css";
+import { isStrongPassword, PASSWORD_REQUIREMENT_TEXT } from "@/lib/password";
+import { SELF_SIGNUP_ENABLED } from "@/lib/config";
 
 export default function SignupPage() {
+  if (!SELF_SIGNUP_ENABLED) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>Cadastro por enquanto é sob consulta</h1>
+          <p className={styles.subtitle}>
+            Ainda não abrimos o autocadastro. Fale com a gente pra criarmos sua conta.
+          </p>
+          <div className={styles.switch}>
+            <Link href="/suporte">Fale com o suporte</Link>
+          </div>
+          <div className={styles.switch}>
+            Já tem conta? <Link href="/login">Entrar</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <SignupForm />;
+}
+
+function SignupForm() {
   const [barbershopName, setBarbershopName] = useState("");
   const [ownerName, setOwnerName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<
+    "mismatch" | "weak_password" | "already_registered" | "generic" | null
+  >(null);
   const [loading, setLoading] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
@@ -19,7 +47,11 @@ export default function SignupPage() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("As senhas não são iguais.");
+      setError("mismatch");
+      return;
+    }
+    if (!isStrongPassword(password)) {
+      setError("weak_password");
       return;
     }
 
@@ -27,7 +59,7 @@ export default function SignupPage() {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ barbershopName, ownerName, email, password }),
+      body: JSON.stringify({ barbershopName, ownerName, phone, email, password }),
     });
 
     setLoading(false);
@@ -37,11 +69,7 @@ export default function SignupPage() {
       // ao enviar o e-mail de confirmação) — as duas costumavam mostrar a
       // mesma mensagem, o que escondia problemas reais de infraestrutura
       // atrás de um "já está cadastrado" que nem sempre era verdade.
-      setError(
-        body?.error === "email_already_registered"
-          ? "Esse e-mail já está cadastrado."
-          : "Não foi possível criar a conta agora. Tente novamente em alguns minutos — se persistir, avise o suporte."
-      );
+      setError(body?.error === "email_already_registered" ? "already_registered" : "generic");
       return;
     }
 
@@ -75,7 +103,19 @@ export default function SignupPage() {
         <p className={styles.subtitle}>Cadastre sua barbearia para começar</p>
 
         <form className={styles.form} onSubmit={handleSubmit}>
-          {error && <div className={styles.error}>{error}</div>}
+          {error && (
+            <div className={styles.error}>
+              {error === "mismatch" && "As senhas não são iguais."}
+              {error === "weak_password" && PASSWORD_REQUIREMENT_TEXT}
+              {error === "already_registered" && "Esse e-mail já está cadastrado."}
+              {error === "generic" && (
+                <>
+                  Não foi possível criar a conta agora. Tente novamente em alguns minutos — se
+                  persistir, <Link href="/suporte">avise o suporte</Link>.
+                </>
+              )}
+            </div>
+          )}
 
           <div className={styles.field}>
             <label className={styles.label} htmlFor="barbershopName">
@@ -106,6 +146,22 @@ export default function SignupPage() {
           </div>
 
           <div className={styles.field}>
+            <label className={styles.label} htmlFor="phone">
+              WhatsApp
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              className={styles.input}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="(11) 91234-5678"
+              required
+              minLength={8}
+            />
+          </div>
+
+          <div className={styles.field}>
             <label className={styles.label} htmlFor="email">
               E-mail
             </label>
@@ -132,6 +188,7 @@ export default function SignupPage() {
               required
               minLength={8}
             />
+            <span className={styles.hint}>{PASSWORD_REQUIREMENT_TEXT}</span>
           </div>
 
           <div className={styles.field}>
@@ -161,6 +218,9 @@ export default function SignupPage() {
 
         <div className={styles.switch}>
           Já tem conta? <Link href="/login">Entrar</Link>
+        </div>
+        <div className={styles.switch}>
+          Precisa de ajuda? <Link href="/suporte">Fale com o suporte</Link>
         </div>
       </div>
     </div>

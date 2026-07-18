@@ -111,12 +111,17 @@ function maskTime(digits: string): string {
 }
 
 type ServiceOption = { id: string; name: string; durationMin: number; priceCents: number };
+type StaffOption = { id: string; name: string };
 
 export function NewAppointmentButton({
   services,
+  staffOptions,
+  defaultStaffId,
   defaultDate,
 }: {
   services: ServiceOption[];
+  staffOptions: StaffOption[];
+  defaultStaffId: string;
   defaultDate: string;
 }) {
   const router = useRouter();
@@ -124,6 +129,7 @@ export function NewAppointmentButton({
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [serviceId, setServiceId] = useState(services[0]?.id ?? "");
+  const [staffId, setStaffId] = useState(defaultStaffId);
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState("09:00");
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +148,7 @@ export function NewAppointmentButton({
     const res = await fetch("/api/appointments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientName, clientPhone, serviceId, startTime }),
+      body: JSON.stringify({ clientName, clientPhone, serviceId, staffId, startTime }),
     });
 
     setLoading(false);
@@ -213,6 +219,24 @@ export function NewAppointmentButton({
               ))}
             </select>
           </div>
+
+          {staffOptions.length > 1 && (
+            <div className={styles.field}>
+              <label className={styles.label}>Barbeiro</label>
+              <select
+                className={styles.input}
+                value={staffId}
+                onChange={(e) => setStaffId(e.target.value)}
+                required
+              >
+                {staffOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className={styles.fieldRow}>
             <div className={styles.field}>

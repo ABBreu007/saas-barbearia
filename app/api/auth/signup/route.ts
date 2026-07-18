@@ -5,12 +5,19 @@ import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateUniqueSlug } from "@/lib/slug";
 import { TRIAL_DAYS, PILOT_MONTHS } from "@/lib/plans";
+import { isStrongPassword } from "@/lib/password";
+import { SELF_SIGNUP_ENABLED } from "@/lib/config";
 
 const signupSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8).max(72),
+  password: z
+    .string()
+    .min(8)
+    .max(72)
+    .refine(isStrongPassword, "A senha precisa ter letra maiúscula, minúscula e um caractere especial."),
   barbershopName: z.string().min(2).max(80),
   ownerName: z.string().min(2).max(80),
+  phone: z.string().min(8).max(20),
 });
 
 // Cadastro de uma nova barbearia: cria o usuário no Supabase Auth e, em
@@ -18,6 +25,10 @@ const signupSchema = z.object({
 // de entrada que cria uma barbearia — todas as outras rotas assumem que
 // staff.barbershopId já existe.
 export async function POST(request: NextRequest) {
+  if (!SELF_SIGNUP_ENABLED) {
+    return NextResponse.json({ error: "signup_closed" }, { status: 403 });
+  }
+
   const parsed = signupSchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json(
@@ -26,7 +37,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { email, password, barbershopName, ownerName } = parsed.data;
+  const { email, password, barbershopName, ownerName, phone } = parsed.data;
 
   // signUp() (não admin.createUser) de propósito: é o único jeito do Supabase
   // mandar de verdade o e-mail de confirmação — admin.createUser não dispara
@@ -87,6 +98,7 @@ export async function POST(request: NextRequest) {
           authUserId,
           name: ownerName,
           email,
+          phone,
           role: "OWNER",
         },
       });
