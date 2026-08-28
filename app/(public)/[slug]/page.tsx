@@ -69,6 +69,7 @@ export default async function PublicBarbershopPage({
         staffList={staff}
         showStaffPicker={barbershop.mode === "DONO" && staff.length > 1}
         plans={plans}
+        barbershopWhatsappUrl={barbershop.whatsappUrl}
       />
 
       <div className={styles.privacyFooter}>

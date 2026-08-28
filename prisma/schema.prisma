@@ -45,7 +45,11 @@ enum SubscriptionStatus {
 // Status do plano de assinatura de um CLIENTE da barbearia (pacote de
 // cortes/mês) — não confundir com SubscriptionStatus acima, que é a
 // assinatura da própria barbearia com o SaaS.
+// PENDING: cliente solicitou pela página pública, aguardando o barbeiro
+// confirmar o pagamento por fora e aprovar (ver app/api/clients/[id]/plan).
+// Sem isso, qualquer um poderia "virar assinante" só digitando um telefone.
 enum ClientPlanStatus {
+  PENDING
   ACTIVE
   CANCELED
 }

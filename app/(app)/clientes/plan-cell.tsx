@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import styles from "./clientes.module.css";
 
 type AvailablePlan = { id: string; name: string; visitsPerMonth: number };
-type CurrentPlan = { planName: string; used: number; visitsPerMonth: number } | null;
+type CurrentPlan = { status: "PENDING" | "ACTIVE"; planName: string; used: number; visitsPerMonth: number } | null;
 
 export function PlanCell({
   clientId,
@@ -32,6 +32,13 @@ export function PlanCell({
     if (res.ok) router.refresh();
   }
 
+  async function approve() {
+    setLoading(true);
+    const res = await fetch(`/api/clients/${clientId}/plan`, { method: "PATCH" });
+    setLoading(false);
+    if (res.ok) router.refresh();
+  }
+
   async function cancel() {
     setLoading(true);
     const res = await fetch(`/api/clients/${clientId}/plan`, { method: "DELETE" });
@@ -39,7 +46,21 @@ export function PlanCell({
     if (res.ok) router.refresh();
   }
 
-  if (clientPlan) {
+  if (clientPlan?.status === "PENDING") {
+    return (
+      <div className={styles.planCell}>
+        <span className={styles.planPendingBadge}>Pedido: {clientPlan.planName}</span>
+        <button type="button" className={styles.planApproveLink} onClick={approve} disabled={loading}>
+          Aprovar
+        </button>
+        <button type="button" className={styles.planCancelLink} onClick={cancel} disabled={loading}>
+          Recusar
+        </button>
+      </div>
+    );
+  }
+
+  if (clientPlan?.status === "ACTIVE") {
     return (
       <div className={styles.planCell}>
         <span className={styles.planBadge}>

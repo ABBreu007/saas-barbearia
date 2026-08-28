@@ -38,7 +38,7 @@ export default async function ClientesPage() {
           select: { startTime: true, priceCents: true },
         },
         clientPlans: {
-          where: { status: "ACTIVE" },
+          where: { status: { in: ["PENDING", "ACTIVE"] } },
           include: { plan: true },
           take: 1,
         },
@@ -59,8 +59,9 @@ export default async function ClientesPage() {
         null
       );
       const daysAway = lastVisit ? daysSince(lastVisit) : null;
-      const activeClientPlan = c.clientPlans[0] ?? null;
-      const credits = activeClientPlan ? await getClientPlanCredits(activeClientPlan) : null;
+      const clientPlanRow = c.clientPlans[0] ?? null;
+      const credits =
+        clientPlanRow && clientPlanRow.status === "ACTIVE" ? await getClientPlanCredits(clientPlanRow) : null;
       return {
         id: c.id,
         name: c.name,
@@ -69,8 +70,13 @@ export default async function ClientesPage() {
         totalCents,
         lastVisit,
         daysAway,
-        clientPlan: activeClientPlan
-          ? { planName: activeClientPlan.plan.name, used: credits!.used, visitsPerMonth: activeClientPlan.plan.visitsPerMonth }
+        clientPlan: clientPlanRow
+          ? {
+              status: clientPlanRow.status as "PENDING" | "ACTIVE",
+              planName: clientPlanRow.plan.name,
+              used: credits?.used ?? 0,
+              visitsPerMonth: clientPlanRow.plan.visitsPerMonth,
+            }
           : null,
       };
     })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getClientPlanCredits } from "@/lib/client-plans";
 
 const querySchema = z.object({ phone: z.string().min(8).max(20) });
 
@@ -39,5 +40,22 @@ export async function GET(
     orderBy: { startTime: "asc" },
   });
 
-  return NextResponse.json({ appointments });
+  // Plano de assinatura desse telefone, se houver (PENDING ou ACTIVE) —
+  // a página pública usa isso pra mostrar "aguardando aprovação" ou
+  // "N créditos restantes", sem precisar de uma segunda rota.
+  const client = await prisma.client.findUnique({
+    where: { barbershopId_phone: { barbershopId: barbershop.id, phone: parsed.data.phone } },
+  });
+  const rawClientPlan = client
+    ? await prisma.clientPlan.findFirst({
+        where: { clientId: client.id, status: { in: ["PENDING", "ACTIVE"] } },
+        include: { plan: true },
+      })
+    : null;
+  const clientPlan =
+    rawClientPlan && rawClientPlan.status === "ACTIVE"
+      ? { ...rawClientPlan, ...(await getClientPlanCredits(rawClientPlan)) }
+      : rawClientPlan;
+
+  return NextResponse.json({ appointments, clientPlan, client: client ? { name: client.name } : null });
 }
