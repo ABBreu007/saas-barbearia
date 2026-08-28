@@ -308,12 +308,20 @@
   color: var(--color-text-secondary);
 }
 
+.kpiTrend[data-sign="positive"],
+.kpiTrend[data-sign="negative"] {
+  display: inline-block;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
 .kpiTrend[data-sign="positive"] {
-  color: var(--color-success-bg);
+  background: var(--status-verde);
 }
 
 .kpiTrend[data-sign="negative"] {
-  color: var(--color-error-strong);
+  background: var(--status-vermelho);
 }
 
 .kpiInsufficient {
@@ -324,16 +332,23 @@
   line-height: 1.4;
 }
 
+.kpiValue[data-status] {
+  display: inline-block;
+  color: #fff;
+  padding: 0px 12px;
+  border-radius: 10px;
+}
+
 .kpiValue[data-status="verde"] {
-  color: var(--status-verde);
+  background: var(--status-verde);
 }
 
 .kpiValue[data-status="amarelo"] {
-  color: var(--status-amarelo);
+  background: var(--status-amarelo);
 }
 
 .kpiValue[data-status="vermelho"] {
-  color: var(--status-vermelho);
+  background: var(--status-vermelho);
 }
 
 .metricsGrid {

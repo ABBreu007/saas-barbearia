@@ -271,6 +271,19 @@ export function BookingClient({
     }
     setRequestingPlanId(null);
     setPlanRequestDone({ planName });
+
+    // Abre o WhatsApp do barbeiro automaticamente com a mensagem pronta —
+    // o cliente não precisa procurar/clicar em nada extra pra avisar que
+    // pediu o plano. O botão abaixo continua visível como alternativa,
+    // pro caso do navegador bloquear o popup.
+    if (barbershopWhatsappUrl) {
+      window.open(
+        `${barbershopWhatsappUrl}?text=${encodeURIComponent(
+          `Olá! Quero assinar o ${planName}, meu nome é ${planRequestName}.`
+        )}`,
+        "_blank"
+      );
+    }
   }
 
   async function fetchCreditSlots(dateStr: string) {

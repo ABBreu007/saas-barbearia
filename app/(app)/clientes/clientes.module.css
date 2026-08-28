@@ -24,6 +24,23 @@
   font-family: var(--font-body);
 }
 
+.groupTitle {
+  margin-top: 28px;
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.groupTitle:first-of-type {
+  margin-top: 20px;
+}
+
+.groupCount {
+  font-family: var(--font-body);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
 .tableHeader {
   display: none;
 }
