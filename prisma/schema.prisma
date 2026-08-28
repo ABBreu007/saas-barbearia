@@ -169,6 +169,14 @@ model BusinessHour {
   openMinutes  Int // minutos desde meia-noite, passo de 30
   closeMinutes Int
 
+  // Pausa (almoço) opcional dentro do expediente do dia — null nos dois
+  // significa "sem pausa". Por barbearia (não por barbeiro): mais simples e
+  // cobre o caso comum hoje; virar por-barbeiro é uma mudança maior (não
+  // existe conceito de horário individual ainda), fica pra quando o modelo
+  // de venda por barbeiro/barbearia estiver definido.
+  breakStartMinutes  Int?
+  breakDurationMin   Int?
+
   @@unique([barbershopId, weekday])
   @@map("business_hours")
 }

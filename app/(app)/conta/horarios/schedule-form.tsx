@@ -16,12 +16,17 @@ const WEEKDAY_NAMES = [
 const STEP = 30;
 const MIN_MINUTES = 0;
 const MAX_MINUTES = 23 * 60 + 30;
+const BREAK_DURATION_STEP = 15;
+const MIN_BREAK_DURATION = 15;
+const MAX_BREAK_DURATION = 240;
 
 type Day = {
   weekday: number;
   isOpen: boolean;
   openMinutes: number;
   closeMinutes: number;
+  breakStartMinutes: number | null;
+  breakDurationMin: number | null;
 };
 
 type TimeOffEntry = { id: string; date: string; reason: string | null };
@@ -39,6 +44,8 @@ function buildInitialDays(existing: Day[]): Day[] {
         isOpen: false,
         openMinutes: 9 * 60,
         closeMinutes: 18 * 60,
+        breakStartMinutes: null,
+        breakDurationMin: null,
       }
     );
   });
@@ -86,6 +93,39 @@ export function ScheduleForm({
   function incClose(weekday: number, day: Day) {
     const next = Math.min(MAX_MINUTES, day.closeMinutes + STEP);
     updateDay(weekday, { closeMinutes: next });
+  }
+
+  function toggleBreak(weekday: number, day: Day) {
+    if (day.breakStartMinutes != null) {
+      updateDay(weekday, { breakStartMinutes: null, breakDurationMin: null });
+      return;
+    }
+    // Sugere meio-dia (ou o início do expediente, se abrir depois disso)
+    // com 1h de duração — ponto de partida razoável, o barbeiro ajusta.
+    const suggestedStart = Math.max(day.openMinutes, Math.min(12 * 60, day.closeMinutes - 60));
+    updateDay(weekday, { breakStartMinutes: suggestedStart, breakDurationMin: 60 });
+  }
+
+  function decBreakStart(weekday: number, day: Day) {
+    if (day.breakStartMinutes == null) return;
+    const next = Math.max(day.openMinutes, day.breakStartMinutes - STEP);
+    updateDay(weekday, { breakStartMinutes: next });
+  }
+  function incBreakStart(weekday: number, day: Day) {
+    if (day.breakStartMinutes == null || day.breakDurationMin == null) return;
+    const next = Math.min(day.closeMinutes - day.breakDurationMin, day.breakStartMinutes + STEP);
+    updateDay(weekday, { breakStartMinutes: next });
+  }
+  function decBreakDuration(weekday: number, day: Day) {
+    if (day.breakDurationMin == null) return;
+    const next = Math.max(MIN_BREAK_DURATION, day.breakDurationMin - BREAK_DURATION_STEP);
+    updateDay(weekday, { breakDurationMin: next });
+  }
+  function incBreakDuration(weekday: number, day: Day) {
+    if (day.breakStartMinutes == null || day.breakDurationMin == null) return;
+    const maxByClose = day.closeMinutes - day.breakStartMinutes;
+    const next = Math.min(MAX_BREAK_DURATION, maxByClose, day.breakDurationMin + BREAK_DURATION_STEP);
+    updateDay(weekday, { breakDurationMin: next });
   }
 
   async function addFolga() {
@@ -184,6 +224,68 @@ export function ScheduleForm({
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {editingDay === day.weekday && day.isOpen && (
+              <div className={styles.breakRow}>
+                <label className={styles.breakToggleLabel}>
+                  <button
+                    type="button"
+                    className={styles.switch}
+                    data-on={day.breakStartMinutes != null}
+                    onClick={() => toggleBreak(day.weekday, day)}
+                    aria-label={day.breakStartMinutes != null ? "Remover pausa" : "Adicionar pausa (almoço)"}
+                  >
+                    <span className={styles.switchKnob} />
+                  </button>
+                  Pausa (almoço)
+                </label>
+
+                {day.breakStartMinutes != null && day.breakDurationMin != null && (
+                  <div className={styles.editorRow}>
+                    <div className={styles.stepperBox}>
+                      <div className={styles.stepperLabel}>Início</div>
+                      <div className={styles.stepperControls}>
+                        <button
+                          type="button"
+                          className={styles.stepperBtn}
+                          onClick={() => decBreakStart(day.weekday, day)}
+                        >
+                          −
+                        </button>
+                        <span className={styles.stepperValue}>{minutesLabel(day.breakStartMinutes)}</span>
+                        <button
+                          type="button"
+                          className={styles.stepperBtnAccent}
+                          onClick={() => incBreakStart(day.weekday, day)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <div className={styles.stepperBox}>
+                      <div className={styles.stepperLabel}>Duração</div>
+                      <div className={styles.stepperControls}>
+                        <button
+                          type="button"
+                          className={styles.stepperBtn}
+                          onClick={() => decBreakDuration(day.weekday, day)}
+                        >
+                          −
+                        </button>
+                        <span className={styles.stepperValue}>{day.breakDurationMin}min</span>
+                        <button
+                          type="button"
+                          className={styles.stepperBtnAccent}
+                          onClick={() => incBreakDuration(day.weekday, day)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

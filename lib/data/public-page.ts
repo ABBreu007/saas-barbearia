@@ -97,11 +97,22 @@ export async function computeAvailableSlots(barbershopId: string, dateStr: strin
     select: { startTime: true, endTime: true },
   });
 
+  // Pausa (almoço) do dia, se configurada — tratada igual a um agendamento
+  // já existente pra fins de bloquear slots que caem dentro dela.
+  const breakWindow =
+    hours.breakStartMinutes != null && hours.breakDurationMin != null
+      ? {
+          start: new Date(dayStart.getTime() + hours.breakStartMinutes * 60_000),
+          end: new Date(dayStart.getTime() + (hours.breakStartMinutes + hours.breakDurationMin) * 60_000),
+        }
+      : null;
+
   const slots: string[] = [];
   for (let minutes = hours.openMinutes; minutes + SLOT_STEP_MIN <= hours.closeMinutes; minutes += SLOT_STEP_MIN) {
     const slotStart = new Date(dayStart.getTime() + minutes * 60_000);
     const slotEnd = new Date(slotStart.getTime() + SLOT_STEP_MIN * 60_000);
-    const overlaps = existing.some((a) => slotStart < a.endTime && slotEnd > a.startTime);
+    const overlapsBreak = breakWindow ? slotStart < breakWindow.end && slotEnd > breakWindow.start : false;
+    const overlaps = overlapsBreak || existing.some((a) => slotStart < a.endTime && slotEnd > a.startTime);
     if (!overlaps) {
       slots.push(`${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`);
     }

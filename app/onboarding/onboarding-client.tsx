@@ -15,6 +15,8 @@ const DEFAULT_HOURS = Array.from({ length: 7 }, (_, weekday) => ({
   isOpen: weekday >= 1 && weekday <= 6,
   openMinutes: 9 * 60,
   closeMinutes: 19 * 60,
+  breakStartMinutes: null as number | null,
+  breakDurationMin: null as number | null,
 }));
 
 async function uploadAvatar(file: File): Promise<string> {

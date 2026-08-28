@@ -8,6 +8,8 @@ const dayHoursSchema = z.object({
   isOpen: z.boolean(),
   openMinutes: z.number().int().min(0).max(1410).multipleOf(30),
   closeMinutes: z.number().int().min(0).max(1410).multipleOf(30),
+  breakStartMinutes: z.number().int().min(0).max(1410).multipleOf(30).nullable().optional(),
+  breakDurationMin: z.number().int().min(15).max(240).multipleOf(15).nullable().optional(),
 });
 
 const putSchema = z.object({ days: z.array(dayHoursSchema).length(7) });
@@ -47,6 +49,15 @@ export async function PUT(request: NextRequest) {
         { error: "invalid_hours", detail: `weekday ${day.weekday}: abre deve ser <= fecha - 30min` },
         { status: 400 }
       );
+    }
+    if (day.breakStartMinutes != null && day.breakDurationMin != null) {
+      const breakEnd = day.breakStartMinutes + day.breakDurationMin;
+      if (day.breakStartMinutes < day.openMinutes || breakEnd > day.closeMinutes) {
+        return NextResponse.json(
+          { error: "invalid_break", detail: `weekday ${day.weekday}: pausa precisa caber dentro do expediente` },
+          { status: 400 }
+        );
+      }
     }
   }
 

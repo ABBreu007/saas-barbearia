@@ -105,6 +105,22 @@
   color: var(--color-text-tertiary);
 }
 
+.breakRow {
+  padding: 0 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breakToggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
 .editorRow {
   padding: 0 16px 14px;
   display: flex;
