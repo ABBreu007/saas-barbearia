@@ -31,6 +31,8 @@ alter table "business_hours" enable row level security;
 alter table "time_off"       enable row level security;
 alter table "reviews"        enable row level security;
 alter table "subscriptions"  enable row level security;
+alter table "barbershop_plans" enable row level security;
+alter table "client_plans"     enable row level security;
 
 -- Função auxiliar: barbershopId do staff autenticado (via JWT do Supabase Auth).
 create or replace function current_barbershop_id()
@@ -86,6 +88,16 @@ create policy "reviews_isolation" on "reviews"
   with check ("barbershopId" = current_barbershop_id());
 
 create policy "subscriptions_isolation" on "subscriptions"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "barbershop_plans_isolation" on "barbershop_plans"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "client_plans_isolation" on "client_plans"
   for all
   using ("barbershopId" = current_barbershop_id())
   with check ("barbershopId" = current_barbershop_id());

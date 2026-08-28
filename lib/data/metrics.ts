@@ -32,9 +32,19 @@ function previousPeriodRange(period: Period) {
   return brazilPreviousMonthRange(now);
 }
 
+// clientPlanId: null exclui visitas pagas com crédito de plano de
+// assinatura do cliente (ver prisma/schema.prisma ClientPlan) — o dinheiro
+// dessa visita já foi cobrado por fora na assinatura, não é receita nova
+// naquele dia; contá-la aqui inflaria o faturamento com a mesma visita
+// "de novo".
 async function revenueInRange(barbershopId: string, start: Date, end: Date) {
   const result = await prisma.appointment.aggregate({
-    where: { barbershopId, status: { in: [...COMPLETED] }, startTime: { gte: start, lte: end } },
+    where: {
+      barbershopId,
+      status: { in: [...COMPLETED] },
+      startTime: { gte: start, lte: end },
+      clientPlanId: null,
+    },
     _sum: { priceCents: true },
   });
   return result._sum.priceCents ?? 0;
@@ -192,11 +202,16 @@ export async function getMetrics(barbershopId: string, period: Period) {
     previousMonth,
   ] = await Promise.all([
     prisma.appointment.aggregate({
-      where: { barbershopId, status: { in: [...COMPLETED] }, startTime: { gte: start, lte: end } },
+      where: {
+        barbershopId,
+        status: { in: [...COMPLETED] },
+        startTime: { gte: start, lte: end },
+        clientPlanId: null,
+      },
       _sum: { priceCents: true },
     }),
     prisma.appointment.aggregate({
-      where: { barbershopId, status: { not: "CANCELLED" }, startTime: { gte: start, lte: end } },
+      where: { barbershopId, status: { not: "CANCELLED" }, startTime: { gte: start, lte: end }, clientPlanId: null },
       _sum: { priceCents: true },
     }),
     revenueInRange(barbershopId, prev.start, prev.end),
@@ -211,7 +226,15 @@ export async function getMetrics(barbershopId: string, period: Period) {
     noShowsInRange(barbershopId, prev.start, prev.end),
     ratingAvgInRange(barbershopId, prev.start, prev.end),
     prisma.appointment.count({
-      where: { barbershopId, status: { in: [...COMPLETED] }, startTime: { gte: start, lte: end } },
+      // Denominador do ticket médio — precisa excluir visitas de plano igual
+      // ao numerador (revenueCents), senão o ticket médio sai artificialmente
+      // baixo (dividindo a receita avulsa por uma contagem de visitas maior).
+      where: {
+        barbershopId,
+        status: { in: [...COMPLETED] },
+        startTime: { gte: start, lte: end },
+        clientPlanId: null,
+      },
     }),
     prisma.appointment.count({
       where: { barbershopId, status: { not: "CANCELLED" }, startTime: { gte: start, lte: end } },
@@ -219,13 +242,23 @@ export async function getMetrics(barbershopId: string, period: Period) {
     occupancyPctInRange(barbershopId, start, end),
     prisma.appointment.groupBy({
       by: ["serviceId"],
-      where: { barbershopId, status: { in: [...COMPLETED] }, startTime: { gte: start, lte: end } },
+      where: {
+        barbershopId,
+        status: { in: [...COMPLETED] },
+        startTime: { gte: start, lte: end },
+        clientPlanId: null,
+      },
       _count: { _all: true },
       _sum: { priceCents: true },
     }),
     prisma.appointment.groupBy({
       by: ["staffId"],
-      where: { barbershopId, status: { in: [...COMPLETED] }, startTime: { gte: start, lte: end } },
+      where: {
+        barbershopId,
+        status: { in: [...COMPLETED] },
+        startTime: { gte: start, lte: end },
+        clientPlanId: null,
+      },
       _count: { _all: true },
       _sum: { priceCents: true },
     }),

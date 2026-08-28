@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/auth";
+import { getClientPlanCredits } from "@/lib/client-plans";
 
 // O barbeiro pode agendar para um cliente já cadastrado (clientId) ou criar
 // um cliente novo na hora (nome+telefone) — comum no balcão, quando o
@@ -11,6 +12,10 @@ const baseFields = {
   serviceId: z.string().min(1),
   staffId: z.string().min(1).optional(),
   startTime: z.string().datetime(),
+  // Se true, consome 1 crédito do plano de assinatura ATIVO do cliente em
+  // vez de cobrar avulso — validado server-side (nunca confia em "tem
+  // crédito" vindo do client).
+  useClientPlan: z.boolean().optional(),
 };
 
 const createAppointmentSchema = z.union([
@@ -61,7 +66,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { serviceId, staffId, startTime } = parsed.data;
+  const { serviceId, staffId, startTime, useClientPlan } = parsed.data;
 
   const service = await prisma.service.findFirst({
     where: { id: serviceId, barbershopId: staff.barbershopId },
@@ -110,6 +115,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "slot_unavailable" }, { status: 409 });
   }
 
+  let clientPlanId: string | undefined;
+  if (useClientPlan) {
+    const clientPlan = await prisma.clientPlan.findFirst({
+      where: { clientId: client.id, status: "ACTIVE" },
+      include: { plan: true },
+    });
+    if (!clientPlan) {
+      return NextResponse.json({ error: "no_active_plan" }, { status: 400 });
+    }
+    const { remaining } = await getClientPlanCredits(clientPlan);
+    if (remaining <= 0) {
+      return NextResponse.json({ error: "no_credits_left" }, { status: 400 });
+    }
+    clientPlanId = clientPlan.id;
+  }
+
   const appointment = await prisma.appointment.create({
     data: {
       barbershopId: staff.barbershopId,
@@ -124,6 +145,7 @@ export async function POST(request: NextRequest) {
       endTime: end,
       priceCents: service.priceCents,
       status: "CONFIRMED",
+      clientPlanId,
     },
   });
 

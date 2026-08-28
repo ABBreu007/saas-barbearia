@@ -24,6 +24,11 @@ export async function getPublicBarbershopData(slug: string, date?: string, staff
       reviews: { orderBy: { createdAt: "desc" }, take: 20 },
       businessHours: true,
       staff: { select: { id: true, name: true, avatarUrl: true }, orderBy: { createdAt: "asc" } },
+      plans: {
+        where: { active: true },
+        select: { id: true, name: true, priceCents: true, visitsPerMonth: true },
+        orderBy: { priceCents: "asc" },
+      },
     },
   });
 
@@ -48,6 +53,7 @@ export async function getPublicBarbershopData(slug: string, date?: string, staff
       mode: barbershop.mode,
     },
     services: barbershop.services,
+    plans: barbershop.plans,
     reviews: barbershop.reviews,
     ratingAvg,
     ratingCount,

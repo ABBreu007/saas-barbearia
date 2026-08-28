@@ -62,6 +62,132 @@
   font-weight: 700;
 }
 
+/* --- Seção Nexo Developer --- */
+
+.nexoSection {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--color-border-subtle);
+  --nexo-accent: #ff6a1a;
+}
+
+.nexoHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+}
+
+.nexoLogo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #fff1e6;
+  color: var(--nexo-accent);
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.nexoEyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nexo-accent);
+}
+
+.nexoTitle {
+  margin-top: 2px;
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.nexoSubtitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.nexoGrid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.nexoCardWide {
+  grid-column: 1 / -1;
+}
+
+.nexoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--nexo-accent);
+}
+
+.nexoCardLabel {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nexo-accent);
+}
+
+.nexoCardValue {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-ink);
+  overflow-wrap: break-word;
+}
+
+.nexoCardHint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.nexoCardButton {
+  margin-top: 10px;
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 520px) {
+  .nexoGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .nexoCardWide {
+    grid-column: auto;
+  }
+}
+
 @media (min-width: 900px) {
   .page {
     padding: 48px var(--space-screen-x-desktop) 80px;

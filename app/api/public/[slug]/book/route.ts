@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getClientPlanCredits } from "@/lib/client-plans";
 
 const bookSchema = z.object({
   serviceId: z.string().min(1),
@@ -8,6 +9,11 @@ const bookSchema = z.object({
   clientName: z.string().min(1).max(80),
   clientPhone: z.string().min(8).max(20),
   staffId: z.string().min(1).optional(),
+  // Cliente marca "sou assinante, usar meu crédito" — mesma identidade por
+  // telefone já usada pra cancelar/ver os próprios agendamentos nesta rota
+  // pública; validado contra o ClientPlan real, nunca confia em créditos
+  // informados pelo client.
+  useClientPlan: z.boolean().optional(),
 });
 
 // Rota PÚBLICA de criação de agendamento pelo cliente final (botão
@@ -36,7 +42,7 @@ export async function POST(
     return NextResponse.json({ error: "barbershop_not_found" }, { status: 404 });
   }
 
-  const { serviceId, startTime, clientName, clientPhone, staffId } = parsed.data;
+  const { serviceId, startTime, clientName, clientPhone, staffId, useClientPlan } = parsed.data;
 
   const service = await prisma.service.findFirst({
     where: { id: serviceId, barbershopId: barbershop.id, active: true },
@@ -85,6 +91,22 @@ export async function POST(
     update: { name: clientName },
   });
 
+  let clientPlanId: string | undefined;
+  if (useClientPlan) {
+    const clientPlan = await prisma.clientPlan.findFirst({
+      where: { clientId: client.id, status: "ACTIVE" },
+      include: { plan: true },
+    });
+    if (!clientPlan) {
+      return NextResponse.json({ error: "no_active_plan" }, { status: 400 });
+    }
+    const { remaining } = await getClientPlanCredits(clientPlan);
+    if (remaining <= 0) {
+      return NextResponse.json({ error: "no_credits_left" }, { status: 400 });
+    }
+    clientPlanId = clientPlan.id;
+  }
+
   const appointment = await prisma.appointment.create({
     data: {
       barbershopId: barbershop.id,
@@ -95,6 +117,7 @@ export async function POST(
       endTime: end,
       priceCents: service.priceCents,
       status: "CONFIRMED",
+      clientPlanId,
     },
   });
 

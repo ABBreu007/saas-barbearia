@@ -37,6 +37,7 @@ export function BookingClient({
   initialRatingCount,
   staffList,
   showStaffPicker,
+  plans,
 }: {
   slug: string;
   // Data (YYYY-MM-DD, já calculada no fuso de São Paulo pelo servidor) para
@@ -54,6 +55,11 @@ export function BookingClient({
   // Só mostra o passo "Escolha o profissional" em barbearias modo Dono com
   // mais de 1 barbeiro — autônomo (1 pessoa só) não tem o que escolher.
   showStaffPicker: boolean;
+  // Planos de assinatura ativos da barbearia — só usados aqui pra decidir
+  // se mostra a opção "sou assinante, usar meu crédito". Qual plano
+  // especificamente o cliente tem é resolvido pelo servidor a partir do
+  // telefone, não escolhido aqui.
+  plans: PublicBarbershopData["plans"];
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id ?? "");
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -64,6 +70,7 @@ export function BookingClient({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [useClientPlan, setUseClientPlan] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [booking, setBooking] = useState(false);
   const [bookError, setBookError] = useState<string | null>(null);
@@ -131,6 +138,7 @@ export function BookingClient({
         clientName,
         clientPhone,
         ...(selectedStaffId ? { staffId: selectedStaffId } : {}),
+        useClientPlan: useClientPlan || undefined,
       }),
     });
     setBooking(false);
@@ -139,7 +147,11 @@ export function BookingClient({
       setBookError(
         body?.error === "slot_unavailable"
           ? "Esse horário acabou de ser preenchido. Escolha outro."
-          : "Não foi possível confirmar o agendamento."
+          : body?.error === "no_active_plan"
+            ? "Não encontramos um plano ativo pra esse telefone. Confira se digitou certo ou desmarque a opção de usar crédito."
+            : body?.error === "no_credits_left"
+              ? "Você já usou todos os créditos do seu plano este mês."
+              : "Não foi possível confirmar o agendamento."
       );
       return;
     }
@@ -427,6 +439,16 @@ export function BookingClient({
               placeholder="11999998888"
             />
           </div>
+          {plans.length > 0 && (
+            <label className={styles.planCheckboxRow}>
+              <input
+                type="checkbox"
+                checked={useClientPlan}
+                onChange={(e) => setUseClientPlan(e.target.checked)}
+              />
+              Sou assinante de um plano ({plans.map((p) => p.name).join(", ")}) — usar meu crédito nesta marcação
+            </label>
+          )}
         </div>
       )}
 

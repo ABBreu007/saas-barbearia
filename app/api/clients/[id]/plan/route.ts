@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/auth";
+
+const enrollSchema = z.object({
+  planId: z.string().min(1),
+});
+
+// Matricula o cliente `id` num BarbershopPlan — cria um ClientPlan novo com
+// cycleStart agora. Só permite se o cliente não tiver já um ClientPlan
+// ACTIVE (evita duas assinaturas concorrentes pro mesmo cliente).
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const staff = await requireStaff(request);
+  if (!staff) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { id: clientId } = await params;
+  const parsed = enrollSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_body", issues: parsed.error.issues },
+      { status: 400 }
+    );
+  }
+
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, barbershopId: staff.barbershopId },
+  });
+  if (!client) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const plan = await prisma.barbershopPlan.findFirst({
+    where: { id: parsed.data.planId, barbershopId: staff.barbershopId, active: true },
+  });
+  if (!plan) {
+    return NextResponse.json({ error: "plan_not_found" }, { status: 404 });
+  }
+
+  const existingActive = await prisma.clientPlan.findFirst({
+    where: { clientId, status: "ACTIVE" },
+  });
+  if (existingActive) {
+    return NextResponse.json({ error: "already_enrolled" }, { status: 409 });
+  }
+
+  const clientPlan = await prisma.clientPlan.create({
+    data: {
+      barbershopId: staff.barbershopId,
+      clientId,
+      planId: plan.id,
+      cycleStart: new Date(),
+    },
+    include: { plan: true },
+  });
+
+  return NextResponse.json({ clientPlan }, { status: 201 });
+}
+
+// Cancela o ClientPlan ACTIVE do cliente `id` (mantém a linha, só muda o
+// status — histórico de agendamentos que usaram crédito dele continua válido).
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const staff = await requireStaff(request);
+  if (!staff) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { id: clientId } = await params;
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, barbershopId: staff.barbershopId },
+  });
+  if (!client) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  const { count } = await prisma.clientPlan.updateMany({
+    where: { clientId, barbershopId: staff.barbershopId, status: "ACTIVE" },
+    data: { status: "CANCELED" },
+  });
+
+  if (count === 0) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

@@ -83,8 +83,6 @@ export default async function ContaPage() {
               Teste grátis, sem cartão de crédito · depois{" "}
               {formatCentsBRL(isInPilotWindow(subscription.pilotPriceUntil) ? PILOT_PRICE_CENTS : FULL_PRICE_CENTS)}
               /mês
-              {isInPilotWindow(subscription.pilotPriceUntil) &&
-                ` até ${formatDateShort(subscription.pilotPriceUntil!)}`}
             </div>
           </>
         ) : (

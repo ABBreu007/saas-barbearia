@@ -99,6 +99,16 @@ export function brazilMonthRange(reference: Date = new Date()) {
   return { start, end };
 }
 
+// Nº de dias corridos (fuso de São Paulo) entre `date` e `reference` — 0 se
+// for o mesmo dia, positivo se `date` for no passado. Usado para "há quantos
+// dias o cliente não vem" (lista de Clientes).
+export function daysSince(date: Date, reference: Date = new Date()): number {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const a = brazilDayBounds(date).start.getTime();
+  const b = brazilDayBounds(reference).start.getTime();
+  return Math.round((b - a) / DAY_MS);
+}
+
 // [início, fim) do mês ANTERIOR ao de `reference`, no fuso de São Paulo.
 // Usa aritmética de mês (não milissegundos) porque meses têm tamanhos
 // diferentes — subtrair 30 dias do dia 1 nem sempre cai no mês anterior certo.

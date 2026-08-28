@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Toda barbearia nasce em modo trial no plano FREE (14 dias, sem
-      // cartão) e já sai marcada com o prazo de preço de piloto (R$40/mês
+      // cartão) e já sai marcada com o prazo de preço de piloto (R$90/mês
       // por 3 meses a partir do cadastro — depois migra sozinha pro preço
       // cheio de R$80/mês, ver lib/plans.ts). A cobrança em si só liga
       // quando a integração com o Mercado Pago for ativada.

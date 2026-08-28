@@ -42,6 +42,14 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+// Status do plano de assinatura de um CLIENTE da barbearia (pacote de
+// cortes/mês) — não confundir com SubscriptionStatus acima, que é a
+// assinatura da própria barbearia com o SaaS.
+enum ClientPlanStatus {
+  ACTIVE
+  CANCELED
+}
+
 model Barbershop {
   id           String        @id @default(cuid())
   slug         String        @unique
@@ -67,6 +75,8 @@ model Barbershop {
   timeOff       TimeOff[]
   reviews       Review[]
   subscription  Subscription?
+  plans         BarbershopPlan[]
+  clientPlans   ClientPlan[]
 
   @@map("barbershops")
 }
@@ -115,6 +125,7 @@ model Client {
   createdAt    DateTime   @default(now())
 
   appointments Appointment[]
+  clientPlans  ClientPlan[]
 
   @@unique([barbershopId, phone])
   @@index([barbershopId])
@@ -136,6 +147,9 @@ model Appointment {
   status       AppointmentStatus @default(PENDING)
   priceCents   Int // snapshot do preço do serviço no momento do agendamento
   createdAt    DateTime          @default(now())
+
+  clientPlanId String?
+  clientPlan   ClientPlan?       @relation(fields: [clientPlanId], references: [id], onDelete: SetNull)
 
   @@index([barbershopId, startTime])
   @@index([staffId, startTime])
@@ -193,4 +207,48 @@ model Subscription {
   updatedAt          DateTime            @updatedAt
 
   @@map("subscriptions")
+}
+
+// Plano de assinatura que a barbearia oferece PRO PRÓPRIO CLIENTE (pacote de
+// cortes/mês, ex.: "R$120/mês = 4 cortes") — não confundir com o model
+// Subscription acima, que é a assinatura da barbearia com o SaaS.
+model BarbershopPlan {
+  id             String   @id @default(cuid())
+  barbershopId   String
+  barbershop     Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  name           String
+  priceCents     Int
+  visitsPerMonth Int
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  enrollments ClientPlan[]
+
+  @@index([barbershopId])
+  @@map("barbershop_plans")
+}
+
+// Matrícula de um Client num BarbershopPlan. clientId não é @unique de
+// propósito — um cliente pode ter várias linhas ao longo do tempo (planos
+// cancelados no passado); a regra "só 1 ACTIVE por vez" é validada na API.
+// Créditos restantes no ciclo NÃO são armazenados aqui — são calculados sob
+// demanda contando Appointments com este clientPlanId dentro do ciclo atual
+// (ver lib/client-plans.ts), pra não depender de um job de reset mensal.
+model ClientPlan {
+  id           String           @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop       @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  clientId     String
+  client       Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  planId       String
+  plan         BarbershopPlan   @relation(fields: [planId], references: [id])
+  cycleStart   DateTime // âncora do ciclo mensal de créditos (dia da matrícula)
+  status       ClientPlanStatus @default(ACTIVE)
+  createdAt    DateTime         @default(now())
+
+  appointments Appointment[]
+
+  @@index([barbershopId])
+  @@index([clientId])
+  @@map("client_plans")
 }
