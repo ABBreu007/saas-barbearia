@@ -70,6 +70,12 @@ export function DayView({
           const startMin = Math.max(RANGE_START_MIN, brazilMinutesSinceMidnight(a.startTime));
           const endMin = Math.min(RANGE_END_MIN, brazilMinutesSinceMidnight(a.endTime));
           if (endMin <= startMin) return null;
+          const height = Math.max(28, (endMin - startMin) * PX_PER_MIN);
+          // Nome + serviço juntos precisam de ~42px (padding + duas linhas) pra
+          // caber sem cortar — abaixo disso o "overflow: hidden" do bloco
+          // partia a segunda linha ao meio. Serviços curtos (ex.: 30min) só
+          // mostram o nome, igual a um evento compacto de agenda.
+          const showService = height >= 42;
           return (
             <AppointmentBlock
               key={a.id}
@@ -77,13 +83,15 @@ export function DayView({
               className={styles.timelineBlock}
               style={{
                 top: (startMin - RANGE_START_MIN) * PX_PER_MIN,
-                height: Math.max(28, (endMin - startMin) * PX_PER_MIN),
+                height,
               }}
             >
               <div className={styles.timelineBlockName}>{a.client.name}</div>
-              <div className={styles.timelineBlockService}>
-                {a.service.name} · {formatCentsBRL(a.priceCents)}
-              </div>
+              {showService && (
+                <div className={styles.timelineBlockService}>
+                  {a.service.name} · {formatCentsBRL(a.priceCents)}
+                </div>
+              )}
             </AppointmentBlock>
           );
         })}
