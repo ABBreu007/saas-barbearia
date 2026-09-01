@@ -107,12 +107,28 @@ export async function computeAvailableSlots(barbershopId: string, dateStr: strin
         }
       : null;
 
+  // Bloqueios pontuais (StaffTimeBlock) que se sobrepõem ao dia — sem
+  // staffId bloqueia a barbearia inteira, com staffId só aquele profissional
+  // (e só entra na checagem se a busca de disponibilidade for pra esse mesmo
+  // profissional ou for geral).
+  const timeBlocks = await prisma.staffTimeBlock.findMany({
+    where: {
+      barbershopId,
+      startTime: { lt: dayEnd },
+      endTime: { gt: dayStart },
+      ...(staffId ? { OR: [{ staffId: null }, { staffId }] } : {}),
+    },
+    select: { startTime: true, endTime: true },
+  });
+
   const slots: string[] = [];
   for (let minutes = hours.openMinutes; minutes + SLOT_STEP_MIN <= hours.closeMinutes; minutes += SLOT_STEP_MIN) {
     const slotStart = new Date(dayStart.getTime() + minutes * 60_000);
     const slotEnd = new Date(slotStart.getTime() + SLOT_STEP_MIN * 60_000);
     const overlapsBreak = breakWindow ? slotStart < breakWindow.end && slotEnd > breakWindow.start : false;
-    const overlaps = overlapsBreak || existing.some((a) => slotStart < a.endTime && slotEnd > a.startTime);
+    const overlapsBlock = timeBlocks.some((b) => slotStart < b.endTime && slotEnd > b.startTime);
+    const overlaps =
+      overlapsBreak || overlapsBlock || existing.some((a) => slotStart < a.endTime && slotEnd > a.startTime);
     if (!overlaps) {
       slots.push(`${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`);
     }

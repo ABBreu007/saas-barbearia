@@ -37,6 +37,7 @@ export default async function AppLayout({
         barbershopInitials={initials(staff.barbershop.name)}
         barbershopAvatarUrl={staff.barbershop.avatarUrl}
         planLabel={subscription?.plan ?? "FREE"}
+        isOwner={staff.role === "OWNER"}
       />
       <main className={styles.content}>{children}</main>
     </div>

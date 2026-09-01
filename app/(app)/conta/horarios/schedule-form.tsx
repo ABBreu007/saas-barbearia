@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDateShort, formatTime } from "@/lib/format";
 import styles from "./horarios.module.css";
 
 const WEEKDAY_NAMES = [
@@ -30,6 +31,8 @@ type Day = {
 };
 
 type TimeOffEntry = { id: string; date: string; reason: string | null };
+type TimeBlockEntry = { id: string; staffId: string | null; startTime: string; endTime: string; reason: string | null };
+type StaffOption = { id: string; name: string };
 
 function minutesLabel(min: number) {
   return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
@@ -54,9 +57,13 @@ function buildInitialDays(existing: Day[]): Day[] {
 export function ScheduleForm({
   initialDays,
   initialTimeOff,
+  initialTimeBlocks = [],
+  staffOptions = [],
 }: {
   initialDays: Day[];
   initialTimeOff: TimeOffEntry[];
+  initialTimeBlocks?: TimeBlockEntry[];
+  staffOptions?: StaffOption[];
 }) {
   const [days, setDays] = useState<Day[]>(buildInitialDays(initialDays));
   const [editingDay, setEditingDay] = useState<number | null>(null);
@@ -65,6 +72,15 @@ export function ScheduleForm({
   const [addingFolga, setAddingFolga] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [timeBlocks, setTimeBlocks] = useState(initialTimeBlocks);
+  const [newBlockStaffId, setNewBlockStaffId] = useState(""); // "" = barbearia inteira
+  const [newBlockDate, setNewBlockDate] = useState("");
+  const [newBlockStart, setNewBlockStart] = useState("14:00");
+  const [newBlockEnd, setNewBlockEnd] = useState("15:00");
+  const [newBlockReason, setNewBlockReason] = useState("");
+  const [addingBlock, setAddingBlock] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
 
   function updateDay(weekday: number, patch: Partial<Day>) {
     setDays((prev) => prev.map((d) => (d.weekday === weekday ? { ...d, ...patch } : d)));
@@ -147,6 +163,39 @@ export function ScheduleForm({
   async function removeFolga(id: string) {
     setTimeOff((prev) => prev.filter((t) => t.id !== id));
     await fetch(`/api/time-off?id=${id}`, { method: "DELETE" });
+  }
+
+  async function addTimeBlock() {
+    if (!newBlockDate) return;
+    setAddingBlock(true);
+    setBlockError(null);
+    // Mesma conversão data+hora local (Brasil) → instante UTC já usada pra
+    // criar agendamento manual (ver new-appointment-modal.tsx).
+    const startTime = new Date(`${newBlockDate}T${newBlockStart}:00-03:00`).toISOString();
+    const endTime = new Date(`${newBlockDate}T${newBlockEnd}:00-03:00`).toISOString();
+    const res = await fetch("/api/time-blocks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        staffId: newBlockStaffId || undefined,
+        startTime,
+        endTime,
+        reason: newBlockReason || undefined,
+      }),
+    });
+    setAddingBlock(false);
+    if (!res.ok) {
+      setBlockError("Não foi possível criar o bloqueio — confira se o fim é depois do início.");
+      return;
+    }
+    const { timeBlock } = await res.json();
+    setTimeBlocks((prev) => [...prev, timeBlock].sort((a, b) => a.startTime.localeCompare(b.startTime)));
+    setNewBlockReason("");
+  }
+
+  async function removeTimeBlock(id: string) {
+    setTimeBlocks((prev) => prev.filter((b) => b.id !== id));
+    await fetch(`/api/time-blocks?id=${id}`, { method: "DELETE" });
   }
 
   async function handleSave() {
@@ -320,6 +369,82 @@ export function ScheduleForm({
           />
           <button type="button" className={styles.addFolgaBtn} onClick={addFolga} disabled={addingFolga}>
             + Adicionar
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.folgasHeader} style={{ marginTop: 28 }}>
+        <h2 className={styles.sectionTitle}>Bloqueios pontuais</h2>
+        <span className={styles.hint}>
+          Intervalos avulsos (ex.: 14h–15h hoje), além da pausa de almoço e das folgas — dá pra travar só um
+          profissional ou a barbearia inteira.
+        </span>
+      </div>
+
+      <div className={styles.folgasList} style={{ flexDirection: "column", alignItems: "stretch" }}>
+        {timeBlocks.map((b) => (
+          <div key={b.id} className={styles.blockRow}>
+            <div>
+              <div className={styles.blockRange}>
+                {formatDateShort(new Date(b.startTime))} · {formatTime(new Date(b.startTime))}–
+                {formatTime(new Date(b.endTime))}
+              </div>
+              <div className={styles.blockMeta}>
+                {b.staffId ? staffOptions.find((s) => s.id === b.staffId)?.name ?? "Profissional" : "Barbearia inteira"}
+                {b.reason ? ` · ${b.reason}` : ""}
+              </div>
+            </div>
+            <button type="button" onClick={() => removeTimeBlock(b.id)} aria-label="Remover bloqueio">
+              ✕
+            </button>
+          </div>
+        ))}
+
+        <div className={styles.addBlockForm}>
+          {blockError && <div className={styles.blockError}>{blockError}</div>}
+          {staffOptions.length > 1 && (
+            <select
+              className={styles.dateInput}
+              value={newBlockStaffId}
+              onChange={(e) => setNewBlockStaffId(e.target.value)}
+            >
+              <option value="">Barbearia inteira</option>
+              {staffOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className={styles.addBlockRow}>
+            <input
+              type="date"
+              className={styles.dateInput}
+              value={newBlockDate}
+              onChange={(e) => setNewBlockDate(e.target.value)}
+            />
+            <input
+              type="time"
+              className={styles.dateInput}
+              value={newBlockStart}
+              onChange={(e) => setNewBlockStart(e.target.value)}
+            />
+            <input
+              type="time"
+              className={styles.dateInput}
+              value={newBlockEnd}
+              onChange={(e) => setNewBlockEnd(e.target.value)}
+            />
+          </div>
+          <input
+            type="text"
+            className={styles.dateInput}
+            placeholder="Motivo (opcional)"
+            value={newBlockReason}
+            onChange={(e) => setNewBlockReason(e.target.value)}
+          />
+          <button type="button" className={styles.addFolgaBtn} onClick={addTimeBlock} disabled={addingBlock}>
+            + Adicionar bloqueio
           </button>
         </div>
       </div>

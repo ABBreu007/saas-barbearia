@@ -6,6 +6,8 @@ import { formatCentsBRL, formatDateShort, formatTime } from "@/lib/format";
 import type { AgendaAppointment } from "@/lib/data/agenda";
 import styles from "./agenda.module.css";
 
+type Product = { id: string; name: string; priceCents: number };
+
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendente",
   CONFIRMED: "Confirmado",
@@ -50,6 +52,68 @@ export function AppointmentBlock({
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // "Concluir" não é mais um PATCH de status em um clique — abre a comanda
+  // (o serviço já vem lançado, dá pra adicionar produtos do catálogo) e só
+  // marca COMPLETED quando a comanda é salva (ver POST /api/orders).
+  const [comandaOpen, setComandaOpen] = useState(false);
+  const [products, setProducts] = useState<Product[] | null>(null);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [selectedQty, setSelectedQty] = useState<Record<string, number>>({});
+  const [comandaSaving, setComandaSaving] = useState(false);
+  const [comandaError, setComandaError] = useState<string | null>(null);
+
+  async function openComanda() {
+    setComandaOpen(true);
+    setComandaError(null);
+    if (products === null) {
+      setProductsLoading(true);
+      const res = await fetch("/api/products");
+      setProductsLoading(false);
+      if (res.ok) {
+        const { products: list } = await res.json();
+        setProducts(list.filter((p: Product & { active: boolean }) => p.active));
+      } else {
+        setProducts([]);
+      }
+    }
+  }
+
+  function setQty(productId: string, qty: number) {
+    setSelectedQty((prev) => {
+      const next = { ...prev, [productId]: qty };
+      if (qty <= 0) delete next[productId];
+      return next;
+    });
+  }
+
+  const productsTotalCents = (products ?? []).reduce(
+    (sum, p) => sum + (selectedQty[p.id] ?? 0) * p.priceCents,
+    0
+  );
+  const comandaTotalCents = appointment.priceCents + productsTotalCents;
+
+  async function saveComanda() {
+    setComandaSaving(true);
+    setComandaError(null);
+    const items = [
+      { kind: "SERVICE", refId: appointment.service.id, quantity: 1 },
+      ...Object.entries(selectedQty).map(([refId, quantity]) => ({ kind: "PRODUCT", refId, quantity })),
+    ];
+    const res = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId: appointment.id, items, close: true }),
+    });
+    setComandaSaving(false);
+    if (!res.ok) {
+      setComandaError("Não foi possível salvar a comanda.");
+      return;
+    }
+    setOpen(false);
+    setComandaOpen(false);
+    router.refresh();
+  }
+
   async function updateStatus(status: string) {
     setUpdating(status);
     setError(null);
@@ -79,7 +143,65 @@ export function AppointmentBlock({
         {children}
       </button>
 
-      {open && (
+      {open && comandaOpen && (
+        <div className={styles.modalOverlay} onClick={() => setComandaOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Comanda — {appointment.client.name}</h2>
+
+            <div className={styles.comandaItem}>
+              <span>{appointment.service.name}</span>
+              <span>{formatCentsBRL(appointment.priceCents)}</span>
+            </div>
+
+            {productsLoading && <div className={styles.detailMeta}>Carregando produtos...</div>}
+            {products && products.length > 0 && (
+              <>
+                <div className={styles.detailMeta} style={{ marginTop: 10 }}>
+                  Adicionar produtos
+                </div>
+                {products.map((p) => (
+                  <div key={p.id} className={styles.comandaProductRow}>
+                    <div>
+                      <div>{p.name}</div>
+                      <div className={styles.detailMeta}>{formatCentsBRL(p.priceCents)}</div>
+                    </div>
+                    <div className={styles.comandaQtyStepper}>
+                      <button
+                        type="button"
+                        onClick={() => setQty(p.id, Math.max(0, (selectedQty[p.id] ?? 0) - 1))}
+                      >
+                        −
+                      </button>
+                      <span>{selectedQty[p.id] ?? 0}</span>
+                      <button type="button" onClick={() => setQty(p.id, (selectedQty[p.id] ?? 0) + 1)}>
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            <div className={styles.comandaTotal}>
+              <span>Total</span>
+              <span>{formatCentsBRL(comandaTotalCents)}</span>
+            </div>
+
+            {comandaError && <div className={styles.modalError}>{comandaError}</div>}
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.modalCancel} onClick={() => setComandaOpen(false)}>
+                Voltar
+              </button>
+              <button type="button" className={styles.modalSave} onClick={saveComanda} disabled={comandaSaving}>
+                {comandaSaving ? "Salvando..." : "Salvar e concluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {open && !comandaOpen && (
         <div className={styles.modalOverlay} onClick={() => setOpen(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>{appointment.client.name}</h2>
@@ -145,9 +267,9 @@ export function AppointmentBlock({
                     type="button"
                     className={styles.modalSave}
                     disabled={updating !== null}
-                    onClick={() => updateStatus("COMPLETED")}
+                    onClick={openComanda}
                   >
-                    {updating === "COMPLETED" ? "Concluindo..." : "Concluir"}
+                    Concluir
                   </button>
                 </>
               )}

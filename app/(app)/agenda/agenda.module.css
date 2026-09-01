@@ -358,6 +358,63 @@
   margin-top: 16px;
 }
 
+.comandaItem {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.comandaProductRow {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+
+.comandaQtyStepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.comandaQtyStepper button {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comandaQtyStepper span {
+  min-width: 16px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.comandaTotal {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1.5px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  font-size: 17px;
+  font-weight: 800;
+  font-family: var(--font-heading);
+}
+
 .modalError {
   background: #fbe8ea;
   color: var(--color-error-strong);

@@ -33,6 +33,14 @@ alter table "reviews"        enable row level security;
 alter table "subscriptions"  enable row level security;
 alter table "barbershop_plans" enable row level security;
 alter table "client_plans"     enable row level security;
+alter table "products"           enable row level security;
+alter table "orders"             enable row level security;
+alter table "order_items"        enable row level security;
+alter table "commissions"        enable row level security;
+alter table "cash_registers"     enable row level security;
+alter table "cash_movements"     enable row level security;
+alter table "staff_time_blocks"  enable row level security;
+alter table "barbershop_settings" enable row level security;
 
 -- Função auxiliar: barbershopId do staff autenticado (via JWT do Supabase Auth).
 create or replace function current_barbershop_id()
@@ -98,6 +106,46 @@ create policy "barbershop_plans_isolation" on "barbershop_plans"
   with check ("barbershopId" = current_barbershop_id());
 
 create policy "client_plans_isolation" on "client_plans"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "products_isolation" on "products"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "orders_isolation" on "orders"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "order_items_isolation" on "order_items"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "commissions_isolation" on "commissions"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "cash_registers_isolation" on "cash_registers"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "cash_movements_isolation" on "cash_movements"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "staff_time_blocks_isolation" on "staff_time_blocks"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "barbershop_settings_isolation" on "barbershop_settings"
   for all
   using ("barbershopId" = current_barbershop_id())
   with check ("barbershopId" = current_barbershop_id());

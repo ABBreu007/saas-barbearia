@@ -122,6 +122,12 @@ export default async function ContaPage() {
             <span className={styles.menuAction}>Gerenciar ›</span>
           </Link>
         )}
+        {staff.role === "OWNER" && (
+          <Link href="/conta/configuracoes" className={styles.menuItem}>
+            <span>Comissão &amp; sinal</span>
+            <span className={styles.menuAction}>Configurar ›</span>
+          </Link>
+        )}
         <Link href={`/${staff.barbershop.slug}`} className={styles.menuItem} target="_blank" data-last="true">
           <span>Redes sociais &amp; link público</span>
           <span className={styles.menuAction}>Ver página ›</span>

@@ -54,33 +54,68 @@ enum ClientPlanStatus {
   CANCELED
 }
 
+enum OrderItemKind {
+  SERVICE
+  PRODUCT
+}
+
+enum OrderStatus {
+  OPEN
+  CLOSED
+}
+
+enum CashRegisterStatus {
+  OPEN
+  CLOSED
+}
+
+enum CashMovementType {
+  SALE
+  EXPENSE
+  WITHDRAWAL
+  ADJUSTMENT
+}
+
+enum DepositType {
+  FIXED
+  PERCENT
+}
+
 model Barbershop {
-  id           String        @id @default(cuid())
-  slug         String        @unique
-  name         String
-  description  String?
-  bannerUrl    String?
-  avatarUrl    String?
-  mode         OperationMode @default(DONO)
-  address      String?
-  instagramUrl String?
-  whatsappUrl  String?
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  name             String
+  description      String?
+  bannerUrl        String?
+  avatarUrl        String?
+  mode             OperationMode @default(DONO)
+  address          String?
+  instagramUrl     String?
+  whatsappUrl      String?
   monthlyGoalCents Int?
   dailyGoalCents   Int?
-  onboardedAt  DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  onboardedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  staff         Staff[]
-  services      Service[]
-  clients       Client[]
-  appointments  Appointment[]
-  businessHours BusinessHour[]
-  timeOff       TimeOff[]
-  reviews       Review[]
-  subscription  Subscription?
-  plans         BarbershopPlan[]
-  clientPlans   ClientPlan[]
+  staff           Staff[]
+  services        Service[]
+  clients         Client[]
+  appointments    Appointment[]
+  businessHours   BusinessHour[]
+  timeOff         TimeOff[]
+  reviews         Review[]
+  subscription    Subscription?
+  plans           BarbershopPlan[]
+  clientPlans     ClientPlan[]
+  products        Product[]
+  orders          Order[]
+  orderItems      OrderItem[]
+  commissions     Commission[]
+  cashRegisters   CashRegister[]
+  cashMovements   CashMovement[]
+  staffTimeBlocks StaffTimeBlock[]
+  settings        BarbershopSettings?
 
   @@map("barbershops")
 }
@@ -97,7 +132,13 @@ model Staff {
   avatarUrl    String?
   createdAt    DateTime   @default(now())
 
-  appointments Appointment[]
+  appointments         Appointment[]
+  orders               Order[]
+  commissions          Commission[]
+  staffTimeBlocks      StaffTimeBlock[]
+  cashMovementsCreated CashMovement[]
+  cashRegistersOpened  CashRegister[]   @relation("CashRegisterOpenedBy")
+  cashRegistersClosed  CashRegister[]   @relation("CashRegisterClosedBy")
 
   @@index([barbershopId])
   @@map("staff")
@@ -128,8 +169,16 @@ model Client {
   email        String?
   createdAt    DateTime   @default(now())
 
+  // Dados prontos pra lembrete de aniversário e bloqueio de cliente
+  // inadimplente/problemático — só o campo nesta fase, a automação
+  // (disparo do lembrete, impedir agendamento se bloqueado) fica pra depois.
+  birthDate     DateTime? @db.Date
+  blocked       Boolean   @default(false)
+  blockedReason String?
+
   appointments Appointment[]
   clientPlans  ClientPlan[]
+  orders       Order[]
 
   @@unique([barbershopId, phone])
   @@index([barbershopId])
@@ -153,7 +202,9 @@ model Appointment {
   createdAt    DateTime          @default(now())
 
   clientPlanId String?
-  clientPlan   ClientPlan?       @relation(fields: [clientPlanId], references: [id], onDelete: SetNull)
+  clientPlan   ClientPlan? @relation(fields: [clientPlanId], references: [id], onDelete: SetNull)
+
+  order Order?
 
   @@index([barbershopId, startTime])
   @@index([staffId, startTime])
@@ -174,8 +225,8 @@ model BusinessHour {
   // cobre o caso comum hoje; virar por-barbeiro é uma mudança maior (não
   // existe conceito de horário individual ainda), fica pra quando o modelo
   // de venda por barbeiro/barbearia estiver definido.
-  breakStartMinutes  Int?
-  breakDurationMin   Int?
+  breakStartMinutes Int?
+  breakDurationMin  Int?
 
   @@unique([barbershopId, weekday])
   @@map("business_hours")
@@ -206,17 +257,17 @@ model Review {
 }
 
 model Subscription {
-  id                 String              @id @default(cuid())
-  barbershopId       String              @unique
-  barbershop         Barbershop          @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  plan               SubscriptionPlan    @default(FREE)
-  status             SubscriptionStatus  @default(TRIALING)
-  mpSubscriptionId    String?            @unique
-  trialEndsAt        DateTime?
-  pilotPriceUntil    DateTime?
-  currentPeriodEnd   DateTime?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id               String             @id @default(cuid())
+  barbershopId     String             @unique
+  barbershop       Barbershop         @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  plan             SubscriptionPlan   @default(FREE)
+  status           SubscriptionStatus @default(TRIALING)
+  mpSubscriptionId String?            @unique
+  trialEndsAt      DateTime?
+  pilotPriceUntil  DateTime?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   @@map("subscriptions")
 }
@@ -225,14 +276,14 @@ model Subscription {
 // cortes/mês, ex.: "R$120/mês = 4 cortes") — não confundir com o model
 // Subscription acima, que é a assinatura da barbearia com o SaaS.
 model BarbershopPlan {
-  id             String   @id @default(cuid())
+  id             String     @id @default(cuid())
   barbershopId   String
   barbershop     Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
   name           String
   priceCents     Int
   visitsPerMonth Int
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now())
+  active         Boolean    @default(true)
+  createdAt      DateTime   @default(now())
 
   enrollments ClientPlan[]
 
@@ -263,4 +314,194 @@ model ClientPlan {
   @@index([barbershopId])
   @@index([clientId])
   @@map("client_plans")
+}
+
+// Produto físico vendido pela barbearia (ex.: pomada, óleo de barba) — espelha
+// Service (mesmos campos de nome/preço/soft-delete), sem controle de estoque
+// obrigatório: stockQty é opcional, decremento automático fica pra depois.
+model Product {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  name         String
+  priceCents   Int
+  stockQty     Int?
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@index([barbershopId])
+  @@map("products")
+}
+
+// Comanda de um atendimento. Nasce ao clicar "Concluir" num Appointment
+// (appointmentId preenchido) OU como venda avulsa sem agendamento prévio
+// (appointmentId null, ex.: cliente de passagem comprando só um produto).
+// totalCents é a soma dos OrderItem — snapshot igual a Appointment.priceCents,
+// não recalculado depois. Não guarda nada sobre pagamento/caixa de propósito
+// (ver nota em CashMovement) — isso nasce na fase de sinal/split.
+model Order {
+  id            String       @id @default(cuid())
+  barbershopId  String
+  barbershop    Barbershop   @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  clientId      String
+  client        Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  staffId       String
+  staff         Staff        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  appointmentId String?      @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  status        OrderStatus  @default(OPEN)
+  totalCents    Int          @default(0)
+  createdAt     DateTime     @default(now())
+  closedAt      DateTime?
+
+  items         OrderItem[]
+  commissions   Commission[]
+  cashMovements CashMovement[]
+
+  @@index([barbershopId])
+  @@index([clientId])
+  @@map("orders")
+}
+
+// Linha de uma comanda — um serviço prestado ou um produto vendido. refId
+// aponta pro Service/Product de origem (nullable: se o serviço/produto for
+// apagado depois, o histórico da comanda continua íntegro pelo snapshot em
+// `name`/`unitPriceCents`, igual Appointment.priceCents já faz hoje).
+model OrderItem {
+  id             String        @id @default(cuid())
+  barbershopId   String
+  barbershop     Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  orderId        String
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kind           OrderItemKind
+  refId          String?
+  name           String
+  unitPriceCents Int
+  quantity       Int           @default(1)
+  totalCents     Int
+  createdAt      DateTime      @default(now())
+
+  commission Commission?
+
+  @@index([orderId])
+  @@index([barbershopId])
+  @@map("order_items")
+}
+
+// Comissão de um item de comanda — uma linha por OrderItem, com taxa e valor
+// travados no momento da venda (snapshot, não recalculado se a config de
+// comissão da barbearia mudar depois). rateBps: basis points (ex.: 4000 =
+// 40%). Hoje a taxa vem de BarbershopSettings (única por barbearia); comissão
+// por profissional no futuro só muda de onde rateBps é lido, não este model.
+model Commission {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  orderId      String
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId  String     @unique
+  orderItem    OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  staffId      String
+  staff        Staff      @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  rateBps      Int
+  amountCents  Int
+  createdAt    DateTime   @default(now())
+
+  @@index([barbershopId])
+  @@index([staffId])
+  @@map("commissions")
+}
+
+// Caixa do dia — uma linha por barbearia por data (mesmo padrão de TimeOff).
+// "Caixa do mês" não é uma entidade própria: é um relatório somando os
+// CashRegister do período, calculado sob demanda (mesmo estilo de
+// lib/data/metrics.ts), pra não duplicar dado nem exigir job de fechamento.
+model CashRegister {
+  id                          String             @id @default(cuid())
+  barbershopId                String
+  barbershop                  Barbershop         @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  date                        DateTime           @db.Date
+  status                      CashRegisterStatus @default(OPEN)
+  openedAt                    DateTime           @default(now())
+  openedByStaffId             String
+  openedByStaff               Staff              @relation("CashRegisterOpenedBy", fields: [openedByStaffId], references: [id], onDelete: Restrict)
+  openingBalanceCents         Int
+  closedAt                    DateTime?
+  closedByStaffId             String?
+  closedByStaff               Staff?             @relation("CashRegisterClosedBy", fields: [closedByStaffId], references: [id], onDelete: SetNull)
+  countedClosingBalanceCents  Int?
+  expectedClosingBalanceCents Int?
+
+  movements CashMovement[]
+
+  @@unique([barbershopId, date])
+  @@map("cash_registers")
+}
+
+// Lançamento dentro de um caixa aberto. amountCents é assinado (positivo =
+// entrada, negativo = saída) pra somar direto sem precisar de campo de
+// direção separado. orderId é opcional: preenchido quando o lançamento vem
+// do fechamento automático de uma comanda (tipo SALE); lançamentos manuais
+// (sangria, despesa) não têm orderId. Ligação com Order é só conveniência de
+// UX — Order não sabe nada sobre caixa nem guarda status de pagamento, de
+// propósito, pra não precisar desfazer isso quando o pagamento online entrar.
+model CashMovement {
+  id               String           @id @default(cuid())
+  barbershopId     String
+  barbershop       Barbershop       @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  cashRegisterId   String
+  cashRegister     CashRegister     @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  type             CashMovementType
+  amountCents      Int
+  description      String?
+  orderId          String?
+  order            Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdByStaffId String
+  createdByStaff   Staff            @relation(fields: [createdByStaffId], references: [id], onDelete: Restrict)
+  createdAt        DateTime         @default(now())
+
+  @@index([barbershopId])
+  @@index([cashRegisterId])
+  @@map("cash_movements")
+}
+
+// Bloqueio de horário pontual, além do que já existe (BusinessHour semanal +
+// TimeOff de dia inteiro). staffId opcional: null bloqueia a barbearia
+// inteira nesse intervalo, preenchido bloqueia só aquele profissional.
+model StaffTimeBlock {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  staffId      String?
+  staff        Staff?     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startTime    DateTime
+  endTime      DateTime
+  reason       String?
+  createdAt    DateTime   @default(now())
+
+  @@index([barbershopId, startTime])
+  @@index([staffId, startTime])
+  @@map("staff_time_blocks")
+}
+
+// Configurações da barbearia (1:1, mesmo padrão de Subscription). Campos de
+// sinal (depositRequired/depositType/depositValue/cancellationHoursForFullRefund)
+// já nascem prontos mas sem efeito prático até a fase de sinal/split de
+// pagamento — só a config, sem o gateway ainda.
+model BarbershopSettings {
+  id           String     @id @default(cuid())
+  barbershopId String     @unique
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  depositRequired                Boolean      @default(false)
+  depositType                    DepositType?
+  depositValue                   Int?
+  cancellationHoursForFullRefund Int          @default(24)
+
+  defaultServiceCommissionBps Int @default(0)
+  defaultProductCommissionBps Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("barbershop_settings")
 }

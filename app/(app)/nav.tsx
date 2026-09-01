@@ -26,19 +26,22 @@ export function Nav({
   barbershopInitials,
   barbershopAvatarUrl,
   planLabel,
+  isOwner,
 }: {
   barbershopName: string;
   barbershopInitials: string;
   barbershopAvatarUrl: string | null;
   planLabel: string;
+  isOwner: boolean;
 }) {
   const pathname = usePathname();
+  const visibleItems = NAV_ITEMS.filter((item) => !item.ownerOnly || isOwner);
 
   return (
     <>
       {/* Mobile: tab bar inferior */}
       <nav className={styles.mobileNav} aria-label="Navegação principal">
-        {NAV_ITEMS.filter((item) => !item.desktopOnly).map((item) => {
+        {visibleItems.filter((item) => !item.desktopOnly).map((item) => {
           const active = pathname === item.href;
           return (
             <Link
@@ -66,7 +69,7 @@ export function Nav({
           <span className={styles.sidebarBrandName}>{barbershopName}</span>
         </div>
         <div className={styles.sidebarLinks}>
-          {NAV_ITEMS.map((item) => {
+          {visibleItems.map((item) => {
             const active = pathname === item.href;
             return (
               <Link

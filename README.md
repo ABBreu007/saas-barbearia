@@ -59,8 +59,14 @@ Multi-tenant: toda tabela de negócio tem `barbershopId`. Tabelas (nomes reais n
 - **time_off** — dias de folga/ausência
 - **reviews** — avaliações do cliente final (nome, nota 1–5, comentário)
 - **subscriptions** — plano (FREE/PRO), status e vínculo com a assinatura no Mercado Pago
+- **products** — produtos físicos vendidos na comanda (nome, preço, estoque opcional, ativo)
+- **orders** / **order_items** — comanda de um atendimento (serviço + produtos vendidos); nasce ao clicar "Concluir" num agendamento ou como venda avulsa; `totalCents` é snapshot, não recalculado
+- **commissions** — uma linha por `order_item`, com taxa (`rateBps`) e valor travados no momento da venda
+- **cash_registers** / **cash_movements** — caixa diário (1 registro por barbearia por data, igual `time_off`); movimentos de venda são criados automaticamente ao fechar uma comanda com caixa aberto, movimentos manuais (despesa/sangria/ajuste) são lançados à parte
+- **staff_time_blocks** — bloqueio de horário pontual (início/fim livres), opcionalmente restrito a um profissional — complementa `business_hours` (semanal) e `time_off` (dia inteiro)
+- **barbershop_settings** — configurações da barbearia (1:1, igual `subscriptions`): comissão padrão de serviço/produto e campos de sinal antecipado (`depositRequired`/`depositType`/`depositValue`/`cancellationHoursForFullRefund` — já existem no schema mas ainda sem efeito no agendamento, aguardando a integração de pagamento)
 
-Métricas do Painel (faturamento, clientes atendidos, faltas, serviços mais vendidos, faturamento por barbeiro) **não têm tabela própria** — são calculadas sob demanda via agregação SQL em cima de `appointments` (ver `/api/metrics`).
+Métricas do Painel (faturamento, clientes atendidos, faltas, serviços mais vendidos, faturamento por barbeiro) **não têm tabela própria** — são calculadas sob demanda via agregação SQL em cima de `appointments` (ver `/api/metrics`). Isso continua valendo mesmo com `orders` existindo: o Painel ainda soma `Appointment.priceCents`, não `Order.totalCents` — repontar isso é trabalho da próxima fase (sinal/split de pagamento), quando "agendado" e "pago de verdade" passam a poder divergir.
 
 ---
 
@@ -106,8 +112,22 @@ Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supaba
 | Rota | Método | Auth | Descrição |
 |---|---|---|---|
 | `/api/business-hours` | GET | ✅ | Retorna os 7 dias |
-| `/api/business-hours` | PUT | ✅ | Substitui os 7 dias de uma vez `{days: [{weekday, isOpen, openMinutes, closeMinutes}]}`, com validação de min. 30min entre abre/fecha |
-| `/api/time-off` | GET / POST / DELETE | ✅ | CRUD de folgas |
+| `/api/business-hours` | PUT | ✅ | Substitui os 7 dias de uma vez `{days: [{weekday, isOpen, openMinutes, closeMinutes, breakStartMinutes?, breakDurationMin?}]}`, com validação de min. 30min entre abre/fecha e da pausa caber dentro do expediente |
+| `/api/time-off` | GET / POST / DELETE | ✅ | CRUD de folgas (dia inteiro) |
+| `/api/time-blocks` | GET / POST / DELETE | ✅ | CRUD de bloqueios pontuais `{staffId?, startTime, endTime, reason?}` — intervalo livre, opcionalmente por profissional |
+
+### Produtos, comandas, caixa e comissões
+| Rota | Método | Auth | Descrição |
+|---|---|---|---|
+| `/api/products` | GET / POST | ✅ | CRUD de produtos, mesmo padrão de `/api/services` |
+| `/api/products/[id]` | PATCH / DELETE | ✅ | Edita/remove (desativa em vez de apagar se já foi vendido) |
+| `/api/orders` | POST | ✅ | Cria uma comanda `{appointmentId? \| (clientId & staffId), items: [{kind: "SERVICE"\|"PRODUCT", refId, quantity}], close?}` numa transação: cria `Order`+`OrderItem`(s)+`Commission`(s) (taxa vinda de `BarbershopSettings`), marca o `Appointment` `COMPLETED` se houver, e lança `CashMovement` automaticamente se houver caixa aberto hoje |
+| `/api/orders` | GET | ✅ | Lista comandas (opcionalmente `?clientId=`) |
+| `/api/cash-register` | GET | ✅ | Caixa de hoje (com movimentos) + histórico dos últimos 31 registros |
+| `/api/cash-register` | POST | ✅ | Abre o caixa do dia `{openingBalanceCents}` — só 1 por barbearia por data |
+| `/api/cash-register/[id]/close` | PATCH | ✅ | Fecha o caixa `{countedClosingBalanceCents}` — calcula `expectedClosingBalanceCents` somando os movimentos |
+| `/api/cash-register/[id]/movements` | POST | ✅ | Lançamento manual `{type: "EXPENSE"\|"WITHDRAWAL"\|"ADJUSTMENT", amountCents, description?}` |
+| `/api/settings` | GET / PATCH | ✅ (OWNER) | Configurações da barbearia — comissão padrão de serviço/produto e campos de sinal (ainda sem efeito no agendamento) |
 
 ### Avaliações
 | Rota | Método | Auth | Descrição |
@@ -163,8 +183,8 @@ Ver `.env.example` para a lista completa e onde obter cada uma. Resumo:
 ## 7. Status atual do banco (Supabase já configurado)
 
 - ✅ Projeto Supabase criado e conectado — região **`sa-east-1` (São Paulo)**, migrado de `us-west-2` (Oregon) por latência (ver nota na seção 8)
-- ✅ 9 tabelas migradas (`prisma migrate deploy` aplicado)
-- ✅ RLS ativado + 9 policies aplicadas (`prisma db execute --file prisma/rls.sql`)
+- ✅ 19 tabelas migradas (`prisma migrate deploy` aplicado)
+- ✅ RLS ativado + 19 policies aplicadas (`prisma db execute --file prisma/rls.sql`) — número já ficou desatualizado antes, então ao adicionar tabela nova conferir contando os blocos `alter table` no arquivo em vez de confiar neste texto
 - ✅ Bucket `barbershop-media` do Storage criado (público, até 5MB, jpeg/png/webp) e validado com upload real via `/api/upload/sign`
 - ✅ Supabase Auth (e-mail/senha) confirmado funcionando ponta a ponta: signup → login → chamada autenticada, testado com um usuário real
 
