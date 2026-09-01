@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/auth";
+import { cancelAppointmentAndSettlePayment } from "@/lib/data/payments";
 
 const updateAppointmentSchema = z.object({
   status: z.enum(["PENDING", "CONFIRMED", "CANCELLED", "NO_SHOW", "COMPLETED"]),
@@ -25,13 +26,27 @@ export async function PATCH(
     );
   }
 
-  const { count } = await prisma.appointment.updateMany({
-    where: { id, barbershopId: staff.barbershopId },
-    data: { status: parsed.data.status },
-  });
-
-  if (count === 0) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  // Cancelamento passa pela mesma rotina de acerto de sinal usada no
+  // cancelamento público (reembolso automático dentro do prazo, ou
+  // REFUND_PENDING pro dono decidir) — nunca só troca o status direto quando
+  // pode haver um Payment PAID vinculado.
+  if (parsed.data.status === "CANCELLED") {
+    const existing = await prisma.appointment.findFirst({
+      where: { id, barbershopId: staff.barbershopId },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    await cancelAppointmentAndSettlePayment(id);
+  } else {
+    const { count } = await prisma.appointment.updateMany({
+      where: { id, barbershopId: staff.barbershopId },
+      data: { status: parsed.data.status },
+    });
+    if (count === 0) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
   }
 
   const appointment = await prisma.appointment.findUnique({ where: { id } });

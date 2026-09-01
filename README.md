@@ -13,7 +13,7 @@ SaaS de gestão para barbearias (backend + frontend), construído em Next.js (Ty
 | ORM | Prisma 6 |
 | Auth | Supabase Auth (JWT via cookies) |
 | Storage de imagens | Supabase Storage (bucket `barbershop-media`, ainda **não criado**) |
-| Pagamentos | Mercado Pago — PreApproval API (assinatura recorrente) — **integração adiada**, credenciais ainda não configuradas |
+| Pagamentos | Mercado Pago — PreApproval API (assinatura recorrente) + Preference/Checkout Pro (sinal antecipado do agendamento). `MERCADOPAGO_ACCESS_TOKEN` no `.env` é um token `TEST-...` (sandbox) — dá pra criar preferência/testar o fluxo, mas **não é uma conta de produção real** nem tem Marketplace habilitado (ver seção 5) |
 | Validação | Zod |
 | Estilo | CSS puro com design tokens em `app/globals.css` |
 | Hospedagem alvo | Vercel |
@@ -31,7 +31,8 @@ saas-app/
   lib/
     prisma.ts                 ← client Prisma singleton
     auth.ts                   ← requireStaff() — resolve staff autenticado a partir do JWT
-    mercadopago.ts             ← client PreApproval do Mercado Pago
+    mercadopago.ts             ← clients PreApproval/Preference/Payment/PaymentRefund do Mercado Pago
+    data/payments.ts            ← cálculo do sinal, criação do checkout, cancelamento com reembolso/pendência
     supabase/
       client.ts                ← client Supabase para o browser (chave anon)
       server.ts                 ← client Supabase para Server Components/Route Handlers
@@ -144,6 +145,14 @@ Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supaba
 | `/api/public/[slug]/appointments?phone=` | GET | ❌ público | Cliente busca os próprios agendamentos futuros (não cancelados) pelo telefone usado no agendamento |
 | `/api/public/[slug]/appointments/[id]/cancel` | POST | ❌ público* | Cliente cancela um agendamento `{phone}` — exige que o telefone bata com o do cliente dono do agendamento. *Sem login de cliente nesta MVP: o telefone funciona como credencial informal (mesmo nível de confiança de um link de cancelamento por e-mail sem conta). Ver nota de segurança na seção 5.* |
 | `/api/public/[slug]/data-request` | POST | ❌ público* | Direito de exclusão do titular (LGPD Art. 18) pro cliente final `{phone}` — anonimiza o `Client` (nome vira "Cliente removido", telefone/e-mail viram null) em vez de apagar de verdade, preservando o histórico de faturamento da barbearia. Mesmo modelo de credencial por telefone da rota de cancelamento. |
+| `/api/public/[slug]/payments/[id]` | GET | ❌ público | Status do sinal (`PENDING\|PAID\|FAILED\|...`) — a página consulta em polling ao voltar do Checkout Pro. Id do `Payment` é um cuid não adivinhável, não exige telefone |
+
+### Sinal antecipado e reembolso
+| Rota | Método | Auth | Descrição |
+|---|---|---|---|
+| `/api/payments/webhook` | POST | assinatura HMAC | Recebe eventos de pagamento do Mercado Pago (sinal) — `approved` confirma o `Appointment` (`PENDING → CONFIRMED`), `rejected`/`cancelled` libera o horário (`Appointment → CANCELLED`) |
+| `/api/payments` | GET | ✅ (OWNER) | Lista pendências de reembolso (`Payment.status = REFUND_PENDING`) da barbearia |
+| `/api/payments/[id]` | PATCH | ✅ (OWNER) | Resolve uma pendência `{action: "refund"\|"deny"}` — `refund` chama o estorno de verdade na SDK do Mercado Pago, `deny` só marca que o valor fica retido |
 
 ### Assinatura e upload
 | Rota | Método | Auth | Descrição |
@@ -157,13 +166,18 @@ Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supaba
 ## 5. Segurança implementada
 
 - **Isolamento multi-tenant em código**: toda rota privada usa `requireStaff()` e filtra por `barbershopId` — nunca aceita esse campo vindo do cliente.
-- **RLS no Postgres**: ativado nas 9 tabelas via `prisma/rls.sql`, com policies que restringem cada `staff` autenticado à própria barbearia. Serve como camada extra de defesa caso algo no futuro acesse o Supabase diretamente do browser (hoje tudo passa pelas API routes, que conectam como owner do schema e por isso não são afetadas pela RLS — a RLS protege contra uso indevido da chave anônima, não substitui os `WHERE barbershopId = ...` das rotas).
+- **RLS no Postgres**: ativado em 20 tabelas via `prisma/rls.sql`, com policies que restringem cada `staff` autenticado à própria barbearia. Serve como camada extra de defesa caso algo no futuro acesse o Supabase diretamente do browser (hoje tudo passa pelas API routes, que conectam como owner do schema e por isso não são afetadas pela RLS — a RLS protege contra uso indevido da chave anônima, não substitui os `WHERE barbershopId = ...` das rotas).
 - **Validação de entrada** com Zod em toda rota que recebe body.
-- **Webhook do Mercado Pago** valida a assinatura HMAC (`x-signature`) antes de processar qualquer evento — implementado, mas ainda não testável até as credenciais serem configuradas.
+- **Webhooks do Mercado Pago** (assinatura e sinal) validam a assinatura HMAC (`x-signature`) antes de processar qualquer evento — testado com assinatura calculada manualmente (válida/inválida/tamanho incompatível) contra `/api/payments/webhook`; o ciclo completo com o Mercado Pago chamando de verdade só é testável com uma Aplicação MP configurada.
 - **Uploads** passam por signed URL gerada no backend (nunca sobe direto com uma chave pública fixa) e são escopados por `barbershopId` no path do arquivo.
 - **Segredos**: `SUPABASE_SERVICE_ROLE_KEY` e `MERCADOPAGO_ACCESS_TOKEN` só são usados em código server-side (`lib/supabase/admin.ts`, `lib/mercadopago.ts`), nunca expostos ao client.
 - **Proteção contra corrida (race condition)**: criar/remarcar agendamento e usar crédito de plano rodam dentro de `prisma.$transaction` com `pg_advisory_xact_lock` (uma trava por barbearia+dia e, quando aplicável, por barbeiro+dia ou por matrícula) — evita que duas requisições simultâneas dupliquem um horário ou gastem o mesmo último crédito de plano antes de qualquer uma commitar. Reforçado por um índice único parcial em `client_plans` (`clientId` com `status IN (PENDING, ACTIVE)`), que barra duas matrículas abertas do mesmo cliente mesmo se a checagem em código falhar.
 - **Comanda não pode ser atribuída a outro profissional**: `POST /api/orders` força `staffId = staff.id` pra quem não é `OWNER`, ignorando qualquer valor diferente vindo da requisição — evita que um `BARBER` credite uma venda (e a comissão associada) a um colega.
+- **Sinal antecipado (limitações conhecidas do MVP)**:
+  - Enquanto não existir Marketplace (OAuth Connect por barbearia — ver plano em `C:\Users\joao.abreu\.claude\plans\cryptic-honking-crescent.md`), o valor do sinal pago pelo cliente final cai na conta Mercado Pago da própria Nexo, não na do barbeiro — repasse é combinado manualmente por fora. O dono vê um aviso disso em `/caixa` sempre que houver sinal pago retido.
+  - Reembolso automático (dentro do prazo configurado) e a resolução manual de pendência (`PATCH /api/payments/[id]`) fazem o estorno a partir da conta MP da Nexo — quando o split real existir, essa rotina precisa mudar pra estornar a partir da conta do barbeiro.
+  - Sem expiração automática de reserva não paga: um cliente que gera o sinal e desiste de pagar deixa o horário `PENDING` preso na agenda até o dono cancelar manualmente — não há cron configurado no projeto pra liberar isso sozinho.
+  - Sinal só se aplica ao fluxo público (`/api/public/[slug]/book`) — um agendamento criado pelo próprio barbeiro no balcão (`/api/appointments`) nunca exige sinal.
 - **Cancelamento de agendamento pelo cliente final (limitação conhecida, aceita para o MVP)**: como não há login de cliente, `/api/public/[slug]/appointments` e `.../[id]/cancel` usam o **telefone informado** como credencial — quem souber o telefone usado num agendamento consegue ver e cancelar os agendamentos futuros dele nessa barbearia. É o mesmo modelo de confiança de um link de cancelamento sem conta (comum em sistemas de reserva sem login). Não expõe dados de outras barbearias nem dados além de serviço/horário/preço. Se isso virar um problema real, a evolução natural é um código enviado por SMS/WhatsApp antes de listar os agendamentos.
 - **LGPD**: Política de Privacidade real em `/privacidade` (linkada no cadastro, na página pública e em Conta), direito de exclusão do cliente final via `/api/public/[slug]/data-request` (anonimiza, não apaga de verdade — preserva histórico de faturamento da barbearia) e direito de exclusão da conta inteira via `DELETE /api/barbershop` (zona de perigo em Conta, só OWNER, exige digitar o nome da barbearia). Itens que ainda faltam: Termos de Uso formais e documentação mais detalhada de transferência internacional de dados (Supabase é uma empresa americana, mesmo com o banco fisicamente no Brasil).
 
@@ -312,7 +326,7 @@ Também documentado (não é bug, mas vale deixar claro pra quem ler o código d
 
 As 5 telas do roadmap original (Agenda, Serviços, Painel, Conta, Página pública) estão **completas e testadas**. O que falta é tudo que estava fora desse escopo desde o início:
 
-1. **Mercado Pago** — código do webhook pronto, mas sem credenciais reais configuradas; falta também a rota que *cria* a assinatura (`preApproval.create`) do lado do barbeiro, e um jeito do barbeiro fazer upgrade de FREE pra PRO pela UI. Os campos de preço (`pilotPriceUntil`, `trialEndsAt`) já existem e são mostrados em `/conta` — só falta o checkout de verdade.
+1. **Mercado Pago (assinatura do SaaS)** — código do webhook pronto, `.env` tem um token `TEST-...` (sandbox); falta a rota que *cria* a assinatura (`preApproval.create`) do lado do barbeiro, um jeito do barbeiro fazer upgrade de FREE pra PRO pela UI, e trocar pro token de produção. Os campos de preço (`pilotPriceUntil`, `trialEndsAt`) já existem e são mostrados em `/conta` — só falta o checkout de verdade. (Sinal antecipado do agendamento é uma integração Mercado Pago **separada** — essa já está pronta, ver seção 4 "Sinal antecipado e reembolso" e o plano em `cryptic-honking-crescent.md`.)
 2. **Rate limiting** — mencionado como TODO nos comentários das rotas públicas (`/api/reviews`, `/api/public/[slug]/book`, `/api/public/[slug]/appointments*`), ainda não implementado. Importante antes de expor a página pública de verdade (hoje qualquer um pode martelar essas rotas).
 3. **Deploy na Vercel** — código já está no GitHub (`Nexo-dev-web/Saas-Barbearia`, privado) e `vercel.json` já fixa a região `gru1` (São Paulo); falta o usuário concluir a importação do projeto no dashboard da Vercel e colar as variáveis de ambiente lá (não automatizável sem a conta dele).
 4. **Agenda (visão Dia/Semana) usa uma janela fixa de 08:00–20:00** para a timeline, em vez do horário de funcionamento real configurado pela barbearia. Revisar agora que a tela de Horários existe.

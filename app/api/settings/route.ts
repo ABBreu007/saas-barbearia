@@ -3,9 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/auth";
 
-// Configurações da barbearia (comissão padrão + campos de sinal, ainda sem
-// efeito prático — nascem prontos pra fase de sinal/split de pagamento).
-// Só o OWNER acessa, mesmo gate de app/api/staff/route.ts.
+// Configurações da barbearia (comissão padrão + campos de sinal, que
+// controlam o fluxo de Payment em lib/data/payments.ts). Só o OWNER acessa,
+// mesmo gate de app/api/staff/route.ts.
 const updateSettingsSchema = z.object({
   depositRequired: z.boolean().optional(),
   depositType: z.enum(["FIXED", "PERCENT"]).nullable().optional(),

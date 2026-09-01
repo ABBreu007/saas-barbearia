@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { cancelAppointmentAndSettlePayment } from "@/lib/data/payments";
 
 const bodySchema = z.object({ phone: z.string().min(8).max(20) });
 
@@ -34,6 +35,6 @@ export async function POST(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  await prisma.appointment.update({ where: { id }, data: { status: "CANCELLED" } });
+  await cancelAppointmentAndSettlePayment(id);
   return NextResponse.json({ ok: true });
 }

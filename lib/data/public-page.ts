@@ -30,6 +30,7 @@ export async function getPublicBarbershopData(slug: string, date?: string, staff
         select: { id: true, name: true, priceCents: true, visitsPerMonth: true },
         orderBy: { priceCents: "asc" },
       },
+      settings: { select: { depositRequired: true, depositType: true, depositValue: true } },
     },
   });
 
@@ -61,6 +62,9 @@ export async function getPublicBarbershopData(slug: string, date?: string, staff
     businessHours: barbershop.businessHours,
     availableSlots,
     staff: barbershop.staff,
+    deposit: barbershop.settings?.depositRequired
+      ? { type: barbershop.settings.depositType!, value: barbershop.settings.depositValue! }
+      : null,
   };
 }
 

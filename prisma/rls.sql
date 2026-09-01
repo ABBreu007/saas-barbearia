@@ -41,6 +41,7 @@ alter table "cash_registers"     enable row level security;
 alter table "cash_movements"     enable row level security;
 alter table "staff_time_blocks"  enable row level security;
 alter table "barbershop_settings" enable row level security;
+alter table "payments"           enable row level security;
 
 -- Função auxiliar: barbershopId do staff autenticado (via JWT do Supabase Auth).
 create or replace function current_barbershop_id()
@@ -146,6 +147,11 @@ create policy "staff_time_blocks_isolation" on "staff_time_blocks"
   with check ("barbershopId" = current_barbershop_id());
 
 create policy "barbershop_settings_isolation" on "barbershop_settings"
+  for all
+  using ("barbershopId" = current_barbershop_id())
+  with check ("barbershopId" = current_barbershop_id());
+
+create policy "payments_isolation" on "payments"
   for all
   using ("barbershopId" = current_barbershop_id())
   with check ("barbershopId" = current_barbershop_id());

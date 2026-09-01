@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatCentsBRL, formatDateShort, formatTime } from "@/lib/format";
 import { brazilDateStringBounds } from "@/lib/timezone";
 import type { PublicBarbershopData } from "@/lib/data/public-page";
@@ -45,6 +45,7 @@ export function BookingClient({
   showStaffPicker,
   plans,
   barbershopWhatsappUrl,
+  deposit,
 }: {
   slug: string;
   // Data (YYYY-MM-DD, já calculada no fuso de São Paulo pelo servidor) para
@@ -72,6 +73,10 @@ export function BookingClient({
   // deliberado, não de uma caixinha que qualquer um marca sem querer.
   plans: PublicBarbershopData["plans"];
   barbershopWhatsappUrl: string | null;
+  // Sinal antecipado configurado pela barbearia (null = não exige sinal).
+  // Enquanto não existir Marketplace, o valor cai na conta MP da própria
+  // Nexo — ver lib/data/payments.ts.
+  deposit: PublicBarbershopData["deposit"];
 }) {
   const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id ?? "");
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
@@ -88,6 +93,11 @@ export function BookingClient({
   const [bookedAppointmentId, setBookedAppointmentId] = useState<string | null>(null);
   const [justCancelled, setJustCancelled] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Status do sinal ao voltar do Checkout Pro (?paymentId= na URL de volta).
+  const [returningPaymentStatus, setReturningPaymentStatus] = useState<
+    "PENDING" | "PAID" | "FAILED" | null
+  >(null);
 
   const [manageOpen, setManageOpen] = useState(false);
   const [lookupPhone, setLookupPhone] = useState("");
@@ -141,6 +151,40 @@ export function BookingClient({
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const selectedService = services.find((s) => s.id === selectedServiceId);
+  const depositCents =
+    deposit && selectedService
+      ? deposit.type === "FIXED"
+        ? deposit.value
+        : Math.round((selectedService.priceCents * deposit.value) / 100)
+      : 0;
+
+  // Volta do Checkout Pro do Mercado Pago com ?paymentId= na URL — faz
+  // polling até o webhook confirmar (ou o pagamento falhar).
+  useEffect(() => {
+    const paymentId = new URLSearchParams(window.location.search).get("paymentId");
+    if (!paymentId) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    async function poll() {
+      if (cancelled) return;
+      const res = await fetch(`/api/public/${slug}/payments/${paymentId}`);
+      if (res.ok) {
+        const { status } = await res.json();
+        if (status === "PAID" || status === "FAILED") {
+          setReturningPaymentStatus(status);
+          return;
+        }
+        setReturningPaymentStatus("PENDING");
+      }
+      attempts += 1;
+      if (attempts < 20 && !cancelled) setTimeout(poll, 3000);
+    }
+    poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   async function fetchSlots(dateStr: string, staffId: string | null) {
     setSlotsLoading(true);
@@ -188,11 +232,17 @@ export function BookingClient({
       setBookError(
         body?.error === "slot_unavailable"
           ? "Esse horário acabou de ser preenchido. Escolha outro."
-          : "Não foi possível confirmar o agendamento."
+          : body?.error === "payment_setup_failed"
+            ? "Não foi possível iniciar o pagamento do sinal. Tente novamente."
+            : "Não foi possível confirmar o agendamento."
       );
       return;
     }
-    const { appointment } = await res.json();
+    const { appointment, payment } = await res.json();
+    if (payment?.checkoutUrl) {
+      window.location.href = payment.checkoutUrl;
+      return;
+    }
     setBookedAppointmentId(appointment.id);
     setConfirmed(true);
   }
@@ -864,6 +914,16 @@ export function BookingClient({
 
       {bookError && <div className={styles.error}>{bookError}</div>}
 
+      {returningPaymentStatus === "PENDING" && (
+        <div className={styles.hint}>Aguardando confirmação do pagamento...</div>
+      )}
+      {returningPaymentStatus === "PAID" && (
+        <div className={styles.confirmedBanner}>✓ Sinal pago, agendamento confirmado!</div>
+      )}
+      {returningPaymentStatus === "FAILED" && (
+        <div className={styles.error}>Pagamento não aprovado. Escolha um horário e tente de novo.</div>
+      )}
+
       {!confirmed ? (
         <button
           type="button"
@@ -873,7 +933,9 @@ export function BookingClient({
         >
           {booking
             ? "Confirmando..."
-            : `Confirmar agendamento${selectedService ? ` · ${formatCentsBRL(selectedService.priceCents)}` : ""}`}
+            : depositCents > 0
+              ? `Confirmar e pagar sinal · ${formatCentsBRL(depositCents)}`
+              : `Confirmar agendamento${selectedService ? ` · ${formatCentsBRL(selectedService.priceCents)}` : ""}`}
         </button>
       ) : justCancelled ? (
         <div className={styles.cancelledBanner}>Agendamento cancelado.</div>

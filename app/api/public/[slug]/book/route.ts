@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getClientPlanCredits } from "@/lib/client-plans";
 import { validateAppointmentAvailability } from "@/lib/data/public-page";
+import { depositAmountCents, createDepositPreference } from "@/lib/data/payments";
 import { brazilDateString } from "@/lib/timezone";
 
 const bookSchema = z.object({
@@ -81,7 +82,7 @@ export async function POST(
   });
 
   try {
-    const appointment = await prisma.$transaction(async (tx) => {
+    const { appointment, payment } = await prisma.$transaction(async (tx) => {
       const scheduleDayKey = `${barbershop.id}:barbershop:${brazilDateString(start)}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scheduleDayKey}))`;
       if (staffId) {
@@ -112,7 +113,16 @@ export async function POST(
         clientPlanId = clientPlan.id;
       }
 
-      return tx.appointment.create({
+      // Sinal só entra em jogo pro fluxo comum (não faz sentido cobrar sinal
+      // de quem já está pagando com crédito de plano). Enquanto não existe
+      // Marketplace, esse Payment cai na conta MP da própria Nexo — ver nota
+      // em lib/data/payments.ts.
+      const settings = !useClientPlan
+        ? await tx.barbershopSettings.findUnique({ where: { barbershopId: barbershop.id } })
+        : null;
+      const needsDeposit = !useClientPlan && !!settings?.depositRequired;
+
+      const appointment = await tx.appointment.create({
         data: {
           barbershopId: barbershop.id,
           clientId: client.id,
@@ -121,13 +131,45 @@ export async function POST(
           startTime: start,
           endTime: end,
           priceCents: service.priceCents,
-          status: "CONFIRMED",
+          status: needsDeposit ? "PENDING" : "CONFIRMED",
           clientPlanId,
         },
       });
+
+      if (!needsDeposit || !settings) return { appointment, payment: null };
+
+      const payment = await tx.payment.create({
+        data: {
+          barbershopId: barbershop.id,
+          appointmentId: appointment.id,
+          amountCents: depositAmountCents(settings, service.priceCents),
+          status: "PENDING",
+        },
+      });
+      return { appointment, payment };
     });
 
-    return NextResponse.json({ appointment }, { status: 201 });
+    if (!payment) {
+      return NextResponse.json({ appointment }, { status: 201 });
+    }
+
+    try {
+      const { preferenceId, checkoutUrl } = await createDepositPreference({
+        paymentId: payment.id,
+        serviceName: service.name,
+        amountCents: payment.amountCents,
+        origin: request.nextUrl.origin,
+        slug,
+      });
+      await prisma.payment.update({ where: { id: payment.id }, data: { mpPreferenceId: preferenceId } });
+      return NextResponse.json({ appointment, payment: { id: payment.id, checkoutUrl } }, { status: 201 });
+    } catch {
+      // Não deixa um horário PENDING preso sem cobrança nenhuma associada
+      // se o checkout nem pôde ser criado.
+      await prisma.payment.update({ where: { id: payment.id }, data: { status: "FAILED" } });
+      await prisma.appointment.update({ where: { id: appointment.id }, data: { status: "CANCELLED" } });
+      return NextResponse.json({ error: "payment_setup_failed" }, { status: 502 });
+    }
   } catch (error) {
     if (error instanceof Error && ["no_active_plan", "no_credits_left"].includes(error.message)) {
       return NextResponse.json({ error: error.message }, { status: 400 });

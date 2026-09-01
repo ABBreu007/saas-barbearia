@@ -81,6 +81,15 @@ enum DepositType {
   PERCENT
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUND_PENDING
+  REFUNDED
+  REFUND_DENIED
+}
+
 model Barbershop {
   id               String        @id @default(cuid())
   slug             String        @unique
@@ -116,6 +125,7 @@ model Barbershop {
   cashMovements   CashMovement[]
   staffTimeBlocks StaffTimeBlock[]
   settings        BarbershopSettings?
+  payments        Payment[]
 
   @@map("barbershops")
 }
@@ -204,7 +214,8 @@ model Appointment {
   clientPlanId String?
   clientPlan   ClientPlan? @relation(fields: [clientPlanId], references: [id], onDelete: SetNull)
 
-  order Order?
+  order   Order?
+  payment Payment?
 
   @@index([barbershopId, startTime])
   @@index([staffId, startTime])
@@ -486,8 +497,7 @@ model StaffTimeBlock {
 
 // Configurações da barbearia (1:1, mesmo padrão de Subscription). Campos de
 // sinal (depositRequired/depositType/depositValue/cancellationHoursForFullRefund)
-// já nascem prontos mas sem efeito prático até a fase de sinal/split de
-// pagamento — só a config, sem o gateway ainda.
+// controlam o fluxo de Payment abaixo.
 model BarbershopSettings {
   id           String     @id @default(cuid())
   barbershopId String     @unique
@@ -504,4 +514,38 @@ model BarbershopSettings {
   updatedAt DateTime @updatedAt
 
   @@map("barbershop_settings")
+}
+
+// Sinal antecipado de um Appointment (1:1). IMPORTANTE — enquanto não existir
+// integração de Marketplace (OAuth Connect por barbearia), o valor cai na
+// conta Mercado Pago da própria Nexo, não na do barbeiro: repasse é manual
+// por fora do sistema até essa fase existir. mpPreferenceId identifica o
+// checkout criado (Preference/Checkout Pro); mpPaymentId só é preenchido
+// quando o Mercado Pago confirma o pagamento de verdade via webhook.
+model Payment {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  amountCents Int
+  status      PaymentStatus @default(PENDING)
+
+  mpPreferenceId String?
+  mpPaymentId    String?
+
+  // Só usado quando status vira REFUND_PENDING — "auto_refund_failed" (a
+  // tentativa automática dentro do prazo falhou na chamada) ou
+  // "late_cancellation" (cancelamento fora do prazo, decisão de reembolsar
+  // ou não fica com o dono).
+  refundReason String?
+
+  createdAt  DateTime  @default(now())
+  paidAt     DateTime?
+  refundedAt DateTime?
+
+  @@index([barbershopId])
+  @@map("payments")
 }

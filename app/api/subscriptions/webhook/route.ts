@@ -28,10 +28,12 @@ function isValidSignature(request: NextRequest, rawBody: string): boolean {
     .update(manifest)
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(receivedHash),
-    Buffer.from(expectedHash)
-  );
+  const received = Buffer.from(receivedHash);
+  const expected = Buffer.from(expectedHash);
+  // timingSafeEqual lança (em vez de retornar false) se os buffers tiverem
+  // tamanhos diferentes — um v1 malformado/truncado sem isso derrubava a
+  // rota com 500 em vez de simplesmente rejeitar com 401.
+  return received.length === expected.length && crypto.timingSafeEqual(received, expected);
 }
 
 export async function POST(request: NextRequest) {

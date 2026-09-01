@@ -25,6 +25,17 @@ type CashRegister = {
 
 type RecentRegister = Omit<CashRegister, "movements">;
 
+type RefundPending = {
+  id: string;
+  amountCents: number;
+  refundReason: string | null;
+  appointment: {
+    startTime: string | Date;
+    client: { name: string };
+    service: { name: string };
+  };
+};
+
 const MOVEMENT_LABEL: Record<Movement["type"], string> = {
   SALE: "Venda (comanda)",
   EXPENSE: "Despesa",
@@ -32,29 +43,67 @@ const MOVEMENT_LABEL: Record<Movement["type"], string> = {
   ADJUSTMENT: "Ajuste",
 };
 
+const REFUND_REASON_LABEL: Record<string, string> = {
+  late_cancellation: "Cancelado em cima da hora",
+  auto_refund_failed: "Estorno automático falhou",
+};
+
 export function CaixaClient({
   initialToday,
   initialRecent,
+  heldDepositsCents,
+  initialRefundPending,
 }: {
   initialToday: CashRegister | null;
   initialRecent: RecentRegister[];
+  heldDepositsCents: number;
+  initialRefundPending: RefundPending[];
 }) {
   const [today, setToday] = useState(initialToday);
   const [recent] = useState(initialRecent);
+  const [refundPending, setRefundPending] = useState(initialRefundPending);
 
   const currentBalanceCents =
     today ? today.openingBalanceCents + today.movements.reduce((sum, m) => sum + m.amountCents, 0) : 0;
 
+  const heldDepositsBanner = heldDepositsCents > 0 && (
+    <div className={styles.depositAlert}>
+      {formatCentsBRL(heldDepositsCents)} em sinais de clientes estão na conta Mercado Pago da Nexo, ainda sem
+      repasse automático pro seu banco. Fale com o suporte pra combinar o repasse.
+    </div>
+  );
+
+  const refundPendingSection = refundPending.length > 0 && (
+    <>
+      <div className={styles.sectionLabel}>Reembolsos pendentes</div>
+      <div className={styles.refundList}>
+        {refundPending.map((p) => (
+          <RefundRow
+            key={p.id}
+            payment={p}
+            onResolved={(id) => setRefundPending((prev) => prev.filter((r) => r.id !== id))}
+          />
+        ))}
+      </div>
+    </>
+  );
+
   if (!today) {
     return (
-      <OpenForm
-        onOpened={(cashRegister) => setToday({ ...cashRegister, movements: [] })}
-      />
+      <>
+        {heldDepositsBanner}
+        {refundPendingSection}
+        <OpenForm
+          onOpened={(cashRegister) => setToday({ ...cashRegister, movements: [] })}
+        />
+      </>
     );
   }
 
   return (
     <div>
+      {heldDepositsBanner}
+      {refundPendingSection}
       <div className={styles.summaryCard} data-status={today.status}>
         <div className={styles.summaryRow}>
           <span>Status</span>
@@ -147,6 +196,69 @@ export function CaixaClient({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function RefundRow({
+  payment,
+  onResolved,
+}: {
+  payment: RefundPending;
+  onResolved: (id: string) => void;
+}) {
+  const [loading, setLoading] = useState<"refund" | "deny" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function resolve(action: "refund" | "deny") {
+    setLoading(action);
+    setError(null);
+    const res = await fetch(`/api/payments/${payment.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    setLoading(null);
+    if (!res.ok) {
+      setError(action === "refund" ? "Não foi possível estornar." : "Não foi possível salvar.");
+      return;
+    }
+    onResolved(payment.id);
+  }
+
+  return (
+    <div className={styles.refundRow}>
+      <div>
+        <div className={styles.movementType}>
+          {payment.appointment.client.name} · {payment.appointment.service.name}
+        </div>
+        <div className={styles.movementDesc}>
+          {formatDateShort(new Date(payment.appointment.startTime))} ·{" "}
+          {REFUND_REASON_LABEL[payment.refundReason ?? ""] ?? payment.refundReason}
+        </div>
+      </div>
+      <div className={styles.refundRowActions}>
+        <div className={styles.movementAmount}>{formatCentsBRL(payment.amountCents)}</div>
+        {error && <div className={styles.formError}>{error}</div>}
+        <div className={styles.editActions}>
+          <button
+            type="button"
+            className={styles.cancelBtn}
+            disabled={loading !== null}
+            onClick={() => resolve("deny")}
+          >
+            {loading === "deny" ? "Salvando..." : "Manter valor"}
+          </button>
+          <button
+            type="button"
+            className={styles.saveBtn}
+            disabled={loading !== null}
+            onClick={() => resolve("refund")}
+          >
+            {loading === "refund" ? "Estornando..." : "Reembolsar"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

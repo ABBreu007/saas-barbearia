@@ -86,11 +86,12 @@ export function ConfiguracoesClient({ initialSettings }: { initialSettings: Sett
       </div>
 
       <div className={styles.sectionLabel} style={{ marginTop: 24 }}>
-        Sinal antecipado <span className={styles.comingSoon}>em breve</span>
+        Sinal antecipado
       </div>
       <div className={styles.hint}>
-        Já dá pra configurar, mas ainda não tem efeito no agendamento — a cobrança de verdade (Mercado Pago)
-        chega numa próxima etapa. O que estiver salvo aqui será usado quando isso entrar no ar.
+        Com o sinal ativado, o cliente paga pelo Mercado Pago na hora de agendar pela página pública — o
+        horário só é confirmado depois do pagamento. Enquanto a barbearia não estiver conectada ao Mercado
+        Pago (em breve), o valor cai na conta da Nexo e o repasse pro seu banco é combinado por fora.
       </div>
       <label className={styles.toggleRow}>
         <span>Exigir sinal para confirmar</span>

@@ -16,7 +16,7 @@ export default async function PublicBarbershopPage({
   const data = await getPublicBarbershopData(slug, bookingDate);
   if (!data) notFound();
 
-  const { barbershop, services, reviews, ratingAvg, ratingCount, availableSlots, staff, plans } = data;
+  const { barbershop, services, reviews, ratingAvg, ratingCount, availableSlots, staff, plans, deposit } = data;
 
   return (
     <div className={styles.page}>
@@ -70,6 +70,7 @@ export default async function PublicBarbershopPage({
         showStaffPicker={barbershop.mode === "DONO" && staff.length > 1}
         plans={plans}
         barbershopWhatsappUrl={barbershop.whatsappUrl}
+        deposit={deposit}
       />
 
       <div className={styles.privacyFooter}>
