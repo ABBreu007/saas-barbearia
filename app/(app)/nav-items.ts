@@ -35,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/painel",
     label: "Painel",
     icon: '<path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/>',
+    ownerOnly: true,
   },
   {
     href: "/caixa",
@@ -42,6 +43,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><circle cx="12" cy="14" r="2.5"/>',
     desktopOnly: true,
     ownerOnly: true,
+  },
+  {
+    href: "/comissoes",
+    label: "Comissões",
+    icon: '<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    desktopOnly: true,
   },
   {
     href: "/clientes",

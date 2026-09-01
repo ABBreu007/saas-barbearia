@@ -103,10 +103,11 @@ Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supaba
 | `/api/appointments/[id]` | PATCH | ✅ | Atualiza status (`CONFIRMED`, `CANCELLED`, `NO_SHOW`, `COMPLETED`) — usada pelo modal de ação da Agenda (clicar num agendamento) |
 | `/api/appointments/[id]` | DELETE | ✅ | Remove |
 
-### Painel / Métricas
+### Painel / Métricas / Comissões
 | Rota | Método | Auth | Descrição |
 |---|---|---|---|
-| `/api/metrics?period=dia\|semana\|mes` | GET | ✅ | Faturamento, clientes atendidos, faltas (+ variação vs período anterior), serviços mais vendidos, faturamento por barbeiro (+ nº de atendimentos), avaliação média (+ tendência), destaques automáticos (`highlights`) e flag `hasData` — tudo calculado on-the-fly em `lib/data/metrics.ts` |
+| `/api/metrics?period=dia\|semana\|mes` | GET | ✅ (OWNER) | Faturamento, clientes atendidos, faltas (+ variação vs período anterior), serviços mais vendidos, faturamento por barbeiro (+ nº de atendimentos), avaliação média (+ tendência), destaques automáticos (`highlights`) e flag `hasData` — tudo calculado on-the-fly em `lib/data/metrics.ts`. Financeiro é só do dono — `BARBER` recebe 403 |
+| `/api/commissions?period=dia\|semana\|mes&staffId=` | GET | ✅ | Comissões do período (`lib/data/commissions.ts`). `staffId` só tem efeito pro OWNER (vê a equipe toda sem o parâmetro, ou filtra por um profissional); um `BARBER` sempre vê só a própria comissão, mesmo passando o `staffId` de outra pessoa |
 
 ### Conta — Horários e folgas
 | Rota | Método | Auth | Descrição |
@@ -123,10 +124,10 @@ Login **não** tem rota própria — é feito direto pelo Supabase Auth (`supaba
 | `/api/products/[id]` | PATCH / DELETE | ✅ | Edita/remove (desativa em vez de apagar se já foi vendido) |
 | `/api/orders` | POST | ✅ | Cria uma comanda `{appointmentId? \| (clientId & staffId), items: [{kind: "SERVICE"\|"PRODUCT", refId, quantity}], close?}` numa transação: cria `Order`+`OrderItem`(s)+`Commission`(s) (taxa vinda de `BarbershopSettings`), marca o `Appointment` `COMPLETED` se houver, e lança `CashMovement` automaticamente se houver caixa aberto hoje |
 | `/api/orders` | GET | ✅ | Lista comandas (opcionalmente `?clientId=`) |
-| `/api/cash-register` | GET | ✅ | Caixa de hoje (com movimentos) + histórico dos últimos 31 registros |
-| `/api/cash-register` | POST | ✅ | Abre o caixa do dia `{openingBalanceCents}` — só 1 por barbearia por data |
-| `/api/cash-register/[id]/close` | PATCH | ✅ | Fecha o caixa `{countedClosingBalanceCents}` — calcula `expectedClosingBalanceCents` somando os movimentos |
-| `/api/cash-register/[id]/movements` | POST | ✅ | Lançamento manual `{type: "EXPENSE"\|"WITHDRAWAL"\|"ADJUSTMENT", amountCents, description?}` |
+| `/api/cash-register` | GET | ✅ (OWNER) | Caixa de hoje (com movimentos) + histórico dos últimos 31 registros |
+| `/api/cash-register` | POST | ✅ (OWNER) | Abre o caixa do dia `{openingBalanceCents}` — só 1 por barbearia por data |
+| `/api/cash-register/[id]/close` | PATCH | ✅ (OWNER) | Fecha o caixa `{countedClosingBalanceCents}` — calcula `expectedClosingBalanceCents` somando os movimentos |
+| `/api/cash-register/[id]/movements` | POST | ✅ (OWNER) | Lançamento manual `{type: "EXPENSE"\|"WITHDRAWAL"\|"ADJUSTMENT", amountCents, description?}` |
 | `/api/settings` | GET / PATCH | ✅ (OWNER) | Configurações da barbearia — comissão padrão de serviço/produto e campos de sinal (ainda sem efeito no agendamento) |
 
 ### Avaliações

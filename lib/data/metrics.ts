@@ -10,7 +10,7 @@ import {
 export type Period = "dia" | "semana" | "mes";
 const COMPLETED = ["CONFIRMED", "COMPLETED"] as const;
 
-function periodRange(period: Period) {
+export function periodRange(period: Period) {
   const now = new Date();
   if (period === "dia") return { start: brazilDayBounds(now).start, end: now };
   if (period === "semana") return { start: brazilWeekStart(now), end: now };

@@ -20,6 +20,9 @@ export async function POST(
   if (!staff) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  if (staff.role !== "OWNER") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const { id } = await params;
   const parsed = movementSchema.safeParse(await request.json());

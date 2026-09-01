@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
   if (!staff) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  if (staff.role !== "OWNER") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const [today, recent] = await Promise.all([
     prisma.cashRegister.findUnique({
@@ -36,6 +39,9 @@ export async function POST(request: NextRequest) {
   const staff = await requireStaff(request);
   if (!staff) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (staff.role !== "OWNER") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const parsed = openSchema.safeParse(await request.json());

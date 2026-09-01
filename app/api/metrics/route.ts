@@ -12,6 +12,9 @@ export async function GET(request: NextRequest) {
   if (!staff) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  if (staff.role !== "OWNER") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   const { searchParams } = new URL(request.url);
   const period = (searchParams.get("period") as Period) ?? "mes";

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { getMetrics, type Period } from "@/lib/data/metrics";
 import { formatCentsBRL, initials } from "@/lib/format";
@@ -52,6 +53,13 @@ export default async function PainelPage({
 }) {
   const staff = await requireStaff();
   if (!staff) return null; // layout já redireciona
+
+  // Financeiro é só do dono — mesmo padrão de app/(app)/conta/equipe e
+  // app/(app)/caixa (redirect antes de qualquer query, API já bloqueia
+  // de qualquer forma).
+  if (staff.role !== "OWNER") {
+    redirect("/");
+  }
 
   const params = await searchParams;
   const period: Period = (["dia", "semana", "mes"] as const).includes(params.period as Period)
