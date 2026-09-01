@@ -106,7 +106,11 @@ async function occupancyPctInRange(barbershopId: string, start: Date, end: Date)
       weekday: "short",
     }).format(cursor);
     const hours = hoursByWeekday.get(WEEKDAY_NAMES.indexOf(weekdayName));
-    if (hours) availableMinutes += hours.closeMinutes - hours.openMinutes;
+    if (hours) {
+      const breakMinutes =
+        hours.breakStartMinutes != null && hours.breakDurationMin != null ? hours.breakDurationMin : 0;
+      availableMinutes += Math.max(0, hours.closeMinutes - hours.openMinutes - breakMinutes);
+    }
     cursor.setTime(cursor.getTime() + DAY_MS);
   }
   if (availableMinutes === 0) return null;

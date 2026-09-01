@@ -9,6 +9,8 @@
 // `cycleStart` (a data da matrícula).
 import { prisma } from "@/lib/prisma";
 
+type PrismaLike = Pick<typeof prisma, "appointment">;
+
 // Soma `months` a `date` preservando dia-do-mês e hora, com clamp pro
 // último dia do mês de destino quando ele for mais curto (ex.: matrícula
 // dia 31 de janeiro + 1 mês = 28/29 de fevereiro, não "3 de março").
@@ -44,9 +46,9 @@ export async function getClientPlanCredits(clientPlan: {
   id: string;
   cycleStart: Date;
   plan: { visitsPerMonth: number };
-}) {
+}, db: PrismaLike = prisma) {
   const cycleStart = currentCycleStart(clientPlan.cycleStart);
-  const used = await prisma.appointment.count({
+  const used = await db.appointment.count({
     where: {
       clientPlanId: clientPlan.id,
       status: { in: [...COUNTED_STATUSES] },

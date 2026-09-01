@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
         <p className={styles.updated}>Última atualização: julho de 2026</p>
 
         <p>
-          Esta Política explica como o SaaS Barbearia ("nós", "sistema") coleta, usa e protege dados
+          Esta Política explica como o SaaS Barbearia (&quot;nós&quot;, &quot;sistema&quot;) coleta, usa e protege dados
           pessoais, em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei 13.709/2018).
           Se você é uma barbearia usando o sistema (barbeiro/dono) ou um cliente final agendando um
           horário, esta página se aplica a você.
@@ -80,7 +80,7 @@ export default function PrivacyPolicyPage() {
           <li>
             Exclusão/anonimização dos seus dados — para clientes finais, isso pode ser feito
             diretamente na página de agendamento da barbearia, na seção{" "}
-            <strong>"Já tem um agendamento?"</strong>, buscando pelo seu telefone. O nome e telefone são
+            <strong>&quot;Já tem um agendamento?&quot;</strong>, buscando pelo seu telefone. O nome e telefone são
             removidos; o histórico de agendamento é mantido anonimizado por exigência contábil da
             barbearia.
           </li>

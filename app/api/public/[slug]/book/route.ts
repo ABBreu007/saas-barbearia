@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getClientPlanCredits } from "@/lib/client-plans";
+import { validateAppointmentAvailability } from "@/lib/data/public-page";
+import { brazilDateString } from "@/lib/timezone";
 
 const bookSchema = z.object({
   serviceId: z.string().min(1),
@@ -69,19 +71,6 @@ export async function POST(
   // conflita com qualquer agendamento da barbearia. Precisa bater com o que
   // a lista de horários disponíveis mostrou, senão o cliente vê um horário
   // "livre" que na hora de confirmar é rejeitado.
-  const conflict = await prisma.appointment.findFirst({
-    where: {
-      barbershopId: barbershop.id,
-      status: { in: ["PENDING", "CONFIRMED"] },
-      startTime: { lt: end },
-      endTime: { gt: start },
-      ...(staffId ? { staffId } : {}),
-    },
-  });
-  if (conflict) {
-    return NextResponse.json({ error: "slot_unavailable" }, { status: 409 });
-  }
-
   const client = await prisma.client.upsert({
     where: {
       // combinação usada como identidade "de fato" do cliente final nesta barbearia
@@ -91,35 +80,64 @@ export async function POST(
     update: { name: clientName },
   });
 
-  let clientPlanId: string | undefined;
-  if (useClientPlan) {
-    const clientPlan = await prisma.clientPlan.findFirst({
-      where: { clientId: client.id, status: "ACTIVE" },
-      include: { plan: true },
+  try {
+    const appointment = await prisma.$transaction(async (tx) => {
+      const scheduleDayKey = `${barbershop.id}:barbershop:${brazilDateString(start)}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scheduleDayKey}))`;
+      if (staffId) {
+        const staffDayKey = `${barbershop.id}:${staffId}:${brazilDateString(start)}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${staffDayKey}))`;
+      }
+
+      const availability = await validateAppointmentAvailability({
+        barbershopId: barbershop.id,
+        start,
+        end,
+        staffId,
+        db: tx,
+      });
+      if (!availability.ok) throw new Error(availability.error);
+
+      let clientPlanId: string | undefined;
+      if (useClientPlan) {
+        const clientPlan = await tx.clientPlan.findFirst({
+          where: { clientId: client.id, status: "ACTIVE" },
+          include: { plan: true },
+        });
+        if (!clientPlan) throw new Error("no_active_plan");
+
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${clientPlan.id}))`;
+        const { remaining } = await getClientPlanCredits(clientPlan, tx);
+        if (remaining <= 0) throw new Error("no_credits_left");
+        clientPlanId = clientPlan.id;
+      }
+
+      return tx.appointment.create({
+        data: {
+          barbershopId: barbershop.id,
+          clientId: client.id,
+          serviceId: service.id,
+          staffId: staffId ?? null,
+          startTime: start,
+          endTime: end,
+          priceCents: service.priceCents,
+          status: "CONFIRMED",
+          clientPlanId,
+        },
+      });
     });
-    if (!clientPlan) {
-      return NextResponse.json({ error: "no_active_plan" }, { status: 400 });
+
+    return NextResponse.json({ appointment }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && ["no_active_plan", "no_credits_left"].includes(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    const { remaining } = await getClientPlanCredits(clientPlan);
-    if (remaining <= 0) {
-      return NextResponse.json({ error: "no_credits_left" }, { status: 400 });
+    if (error instanceof Error && ["outside_business_hours", "time_off", "break_time", "time_blocked"].includes(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    clientPlanId = clientPlan.id;
+    if (error instanceof Error && error.message === "slot_unavailable") {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
   }
-
-  const appointment = await prisma.appointment.create({
-    data: {
-      barbershopId: barbershop.id,
-      clientId: client.id,
-      serviceId: service.id,
-      staffId: staffId ?? null,
-      startTime: start,
-      endTime: end,
-      priceCents: service.priceCents,
-      status: "CONFIRMED",
-      clientPlanId,
-    },
-  });
-
-  return NextResponse.json({ appointment }, { status: 201 });
 }

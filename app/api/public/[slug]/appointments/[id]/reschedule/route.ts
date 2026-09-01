@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { validateAppointmentAvailability } from "@/lib/data/public-page";
+import { brazilDateString } from "@/lib/timezone";
 
 const bodySchema = z.object({
   phone: z.string().min(8).max(20),
@@ -42,24 +44,39 @@ export async function POST(
   const start = new Date(parsed.data.startTime);
   const end = new Date(start.getTime() + appointment.service.durationMin * 60_000);
 
-  const conflict = await prisma.appointment.findFirst({
-    where: {
-      id: { not: id },
-      barbershopId: barbershop.id,
-      status: { in: ["PENDING", "CONFIRMED"] },
-      startTime: { lt: end },
-      endTime: { gt: start },
-      ...(appointment.staffId ? { staffId: appointment.staffId } : {}),
-    },
-  });
-  if (conflict) {
-    return NextResponse.json({ error: "slot_unavailable" }, { status: 409 });
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const scheduleDayKey = `${barbershop.id}:barbershop:${brazilDateString(start)}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scheduleDayKey}))`;
+      if (appointment.staffId) {
+        const staffDayKey = `${barbershop.id}:${appointment.staffId}:${brazilDateString(start)}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${staffDayKey}))`;
+      }
+
+      const availability = await validateAppointmentAvailability({
+        barbershopId: barbershop.id,
+        start,
+        end,
+        staffId: appointment.staffId,
+        excludeAppointmentId: id,
+        db: tx,
+      });
+      if (!availability.ok) throw new Error(availability.error);
+
+      return tx.appointment.update({
+        where: { id },
+        data: { startTime: start, endTime: end },
+      });
+    });
+
+    return NextResponse.json({ appointment: updated });
+  } catch (error) {
+    if (error instanceof Error && ["outside_business_hours", "time_off", "break_time", "time_blocked"].includes(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "slot_unavailable") {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
   }
-
-  const updated = await prisma.appointment.update({
-    where: { id },
-    data: { startTime: start, endTime: end },
-  });
-
-  return NextResponse.json({ appointment: updated });
 }

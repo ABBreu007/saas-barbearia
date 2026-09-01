@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./agenda.module.css";
 
@@ -20,10 +20,6 @@ function DateField({
   className: string;
 }) {
   const [display, setDisplay] = useState(() => isoDateToDisplay(value));
-
-  useEffect(() => {
-    setDisplay(isoDateToDisplay(value));
-  }, [value]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
@@ -62,10 +58,6 @@ function TimeField({
   className: string;
 }) {
   const [display, setDisplay] = useState(() => maskTime(value.replace(/\D/g, "")));
-
-  useEffect(() => {
-    setDisplay(maskTime(value.replace(/\D/g, "")));
-  }, [value]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 4);

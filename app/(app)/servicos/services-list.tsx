@@ -82,7 +82,7 @@ export function ServicesList({ initialServices }: { initialServices: Service[] }
 
   return (
     <div>
-      <div className={styles.hint}>Toque em "Editar" para mudar o preço</div>
+      <div className={styles.hint}>Toque em &quot;Editar&quot; para mudar o preço</div>
       {listError && <div className={styles.formError}>{listError}</div>}
 
       {services.length === 0 && !creating ? (

@@ -228,7 +228,7 @@ export function OnboardingClient({
             </p>
 
             {serviceDone ? (
-              <div className={styles.doneBanner}>✓ Serviço "{serviceName}" criado!</div>
+              <div className={styles.doneBanner}>✓ Serviço &quot;{serviceName}&quot; criado!</div>
             ) : (
               <>
                 {serviceError && <div className={styles.error}>{serviceError}</div>}

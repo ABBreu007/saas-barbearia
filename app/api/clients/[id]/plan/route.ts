@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/auth";
@@ -52,18 +53,25 @@ export async function POST(
   // Matrícula direta pelo barbeiro (ex.: cliente pagou pessoalmente, sem
   // passar pelo pedido da página pública) já nasce ACTIVE — diferente do
   // pedido público, que nasce PENDING e precisa de PATCH pra aprovar.
-  const clientPlan = await prisma.clientPlan.create({
-    data: {
-      barbershopId: staff.barbershopId,
-      clientId,
-      planId: plan.id,
-      cycleStart: new Date(),
-      status: "ACTIVE",
-    },
-    include: { plan: true },
-  });
+  try {
+    const clientPlan = await prisma.clientPlan.create({
+      data: {
+        barbershopId: staff.barbershopId,
+        clientId,
+        planId: plan.id,
+        cycleStart: new Date(),
+        status: "ACTIVE",
+      },
+      include: { plan: true },
+    });
 
-  return NextResponse.json({ clientPlan }, { status: 201 });
+    return NextResponse.json({ clientPlan }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "already_enrolled" }, { status: 409 });
+    }
+    throw error;
+  }
 }
 
 // Aprova a solicitação PENDING do cliente `id` (feita pela página

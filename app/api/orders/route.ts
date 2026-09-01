@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
   if (!clientId || !staffId) {
     return NextResponse.json({ error: "client_and_staff_required" }, { status: 400 });
   }
+  if (staff.role !== "OWNER" && staffId !== staff.id) {
+    return NextResponse.json({ error: "forbidden_staff_assignment" }, { status: 403 });
+  }
 
   const client = await prisma.client.findFirst({
     where: { id: clientId, barbershopId: staff.barbershopId },

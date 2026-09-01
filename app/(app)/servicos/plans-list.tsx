@@ -83,7 +83,7 @@ export function PlansList({ initialPlans }: { initialPlans: Plan[] }) {
   return (
     <div>
       <div className={styles.hint}>
-        Pacote mensal de cortes que o cliente assina (ex.: "R$120/mês = 4 cortes"). A cobrança em si
+        Pacote mensal de cortes que o cliente assina (ex.: &quot;R$120/mês = 4 cortes&quot;). A cobrança em si
         continua por fora — o app só controla quantos créditos já foram usados no mês.
       </div>
       {listError && <div className={styles.formError}>{listError}</div>}

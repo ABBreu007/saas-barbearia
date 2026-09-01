@@ -26,7 +26,7 @@ export default function ConfirmEmailPage() {
     const refresh_token = hash.get("refresh_token");
 
     if (!access_token || !refresh_token) {
-      setFailed(true);
+      queueMicrotask(() => setFailed(true));
       return;
     }
 

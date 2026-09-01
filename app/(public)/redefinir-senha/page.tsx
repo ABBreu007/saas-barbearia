@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
     const refresh_token = hash.get("refresh_token");
 
     if (!access_token || !refresh_token) {
-      setStatus("invalid");
+      queueMicrotask(() => setStatus("invalid"));
       return;
     }
 
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
           <>
             <h1 className={styles.title}>Link inválido</h1>
             <p className={styles.subtitle}>
-              Esse link de redefinição é inválido ou já expirou. Peça um novo link em "Esqueci minha senha".
+              Esse link de redefinição é inválido ou já expirou. Peça um novo link em &quot;Esqueci minha senha&quot;.
             </p>
           </>
         )}

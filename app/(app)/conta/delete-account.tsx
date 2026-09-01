@@ -44,7 +44,7 @@ export function DeleteAccountSection({ barbershopName }: { barbershopName: strin
     <div className={styles.dangerZone}>
       <div className={styles.dangerTitle}>Excluir conta</div>
       <p className={styles.dangerDesc}>
-        Isso apaga permanentemente a barbearia "{barbershopName}", todos os serviços, agendamentos,
+        Isso apaga permanentemente a barbearia &quot;{barbershopName}&quot;, todos os serviços, agendamentos,
         clientes e o acesso de todos os barbeiros vinculados. Não é possível desfazer.
       </p>
       <label className={styles.dangerLabel}>
